@@ -113,7 +113,7 @@ async function extractTextBlocks(pdfPath) {
 }
 
 function removeParentheses(text) {
-  return text.replace(/[()״"]/g, " ").trim();
+  return text.replace(/[()]/g, "").replace(/[״"]/g, "''").trim();
 }
 
 function parseOwnerLine(line) {
@@ -127,12 +127,22 @@ function parseOwnerLine(line) {
   let parts = []
   let id = "";
   let ownership = "";
+  if (
+  (line.includes("תיקון טעות סופר") && !line.includes("ת.ז")) ||
+  (line.includes("דרכון")) ||
+  (line.includes("רישום בית משותף") && (!line.includes("חברה") && !line.includes("ת.ז")))
+  )
+ {
+    console.warn("⚠️ שורת בעלים לא תקינה:", line);
+    return null;
+  }
 
-  const stopPattern = /(ירושה על פי הסכם|ירושה|ללא תמורה|מכר ללא תמורה|מכר|שנוי שם|תיקון טעות סופר|צוואה|רישום בית משותף|עודף)/;
+  const stopPattern = /(ירושה על פי הסכם|ירושה|ללא תמורה|מכר לפי צו בית משפט|מכר ללא תמורה|מכר|שנוי שם|צוואה על פי הסכם|צוואה|רישום בית משותף|עודף|תיקון טעות סופר)/;
   const match = line.match(stopPattern);
   if (match) {
     line = line.replace(match[0], "").trim();
   }
+  
 
   line = line.replace(" / ", "/");
   
@@ -146,7 +156,7 @@ function parseOwnerLine(line) {
     parts = line.split("חברה");
   }
   
-
+  console.log("parts", parts)
   const name = removeParentheses(parts[1]).trim();
   owner["שם בעלים"] = name;
 
@@ -185,9 +195,9 @@ function extractOwners(lines, subunitId) {
         let currLine = lines[j].trim();
 
         // תנאים שמסמנים סוף מקטע בעלים
-        const validOwnerPattern = /(ירושה על פי הסכם|ירושה|ללא תמורה|מכר ללא תמורה|מכר|שנוי שם|תיקון טעות סופר|צוואה|רישום בית משותף|עודף)/;
+        const validOwnerPattern = /(ירושה על פי הסכם|ירושה|ללא תמורה|מכר לפי צו בית משפט|מכר ללא תמורה|מכר|שנוי שם|תיקון טעות סופר|צוואה על פי הסכם|צוואה|רישום בית משותף|עודף)/;
         if (!validOwnerPattern.test(currLine)) {
-            if (currLine.includes("הערות") || currLine.includes("תת חלקה") || currLine.includes("משכנתאות")) {
+            if (currLine.includes("הערות") || currLine.includes("תת חלקה") || currLine.includes("משכנתאות") || currLine.includes("חכירות")) {
             break; // סיום מקטע בעלים
           }
           
@@ -247,6 +257,7 @@ function extractSubunitData(lines, subunitId) {
 }
 
 function extractSubunitId(lines) {
+  
   for (const line of lines) {
     if (line.includes("תת חלקה")) {
       const match = line.match(/^(\d+)\s+תת\s+חלקה$/);

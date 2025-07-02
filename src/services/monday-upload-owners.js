@@ -41,7 +41,7 @@ export async function sendOwnersToMonday(token, dfOwners, subunitIdMap) {
       console.warn(`⚠️ לא נמצא item_id לתת חלקה ${subunitId} — דילוג`);
       continue;
     }
-
+    
     const itemName = String(row["שם בעלים"]).trim();
     const columnValues = {
       [ownerColumnMap["תעודת זהות"]]: String(row["תעודת זהות"]).trim(),
@@ -55,7 +55,7 @@ export async function sendOwnersToMonday(token, dfOwners, subunitIdMap) {
     while (attempt < 3 && !success) {
       try {
         attempt++;
-
+        console.log(`Attempt ${attempt} to create owner item: ${itemName}`);
         const response = await mondayClient.api(`
           mutation {
             create_item (
@@ -68,7 +68,7 @@ export async function sendOwnersToMonday(token, dfOwners, subunitIdMap) {
             }
           }
         `);
-
+        console.log("After Response");
         const itemId = response?.data?.create_item?.id;
         if (itemId) {
           success = true;

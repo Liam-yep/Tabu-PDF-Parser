@@ -50,7 +50,7 @@ export async function sendPdf(req, res) {
     if (failedOwners.length > 0) {
       logger.warn("sendPdf", TAG, `Some owners failed to upload: ${failedOwners.join(', ')}`);
     }
-    
+    console.log("returning 200");
     return res.status(200).send()
   } catch (err) {
     console.error("sendPdf", TAG, {"error":err});
