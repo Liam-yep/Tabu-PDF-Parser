@@ -124,6 +124,7 @@ function parseOwnerLine(line) {
     "אחוז אחזקה בתת החלקה": null,
   };
 
+  let parts = []
   let id = "";
   let ownership = "";
 
@@ -134,15 +135,15 @@ function parseOwnerLine(line) {
   }
 
   line = line.replace(" / ", "/");
-
+  
   if (line.includes("ת.ז")) {
-    const parts = line.split("ת.ז");
+    parts = line.split("ת.ז");
     if (parts.length !== 2) {
       console.warn("⚠️ לא זוהתה תבנית 'ת.ז' תקינה בשורה:", line);
       return null;
   }
   } else if (line.includes("חברה")) {
-    const parts = line.split("חברה");
+    parts = line.split("חברה");
   }
   
 
@@ -284,11 +285,16 @@ function parseSubdivisions(subdivisionBlocks) {
 
 
 export async function processPdfFile(filePath) {
-  const { subUnits, unitNumber } = await extractTextBlocks(filePath);
-  console.log("🔢 מספר יחידה:", unitNumber);
-  console.log("📦 כמות תתי־יחידות:", subUnits.length);
+  try {
+    const { subUnits, unitNumber } = await extractTextBlocks(filePath);
+    console.log("🔢 מספר יחידה:", unitNumber);
+    console.log("📦 כמות תתי־יחידות:", subUnits.length);
 
-  const [subunitData, ownersData] = parseSubdivisions(subUnits);
+    const [subunitData, ownersData] = parseSubdivisions(subUnits);
 
-  return { unitNumber, subunitData, ownersData };
+    return { unitNumber, subunitData, ownersData };
+  } catch (error) {
+    console.error("❌ שגיאה בעיבוד קובץ PDF:", error);
+    throw error;
+  }
 }

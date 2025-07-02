@@ -1,6 +1,7 @@
 import initMondayClient from 'monday-sdk-js';
 
 const OWNER_BOARD_ID = 1965912135;
+const TAG = "monday-upload-owners";
 
 const ownerColumnMap = {
   "תעודת זהות": "text_mkr4jcrv",
@@ -29,6 +30,8 @@ export async function sendOwnersToMonday(token, dfOwners, subunitIdMap) {
   const mondayClient = initMondayClient();
   mondayClient.setApiVersion('2024-07');
   mondayClient.setToken(token);
+
+  const failedOwners = [];
 
   for (const row of dfOwners) {
     const subunitId = String(row["תת חלקה"]).trim();
@@ -81,13 +84,15 @@ export async function sendOwnersToMonday(token, dfOwners, subunitIdMap) {
       }
 
       if (!success && attempt < 3) {
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Wait 1s, 2s
+        await new Promise(resolve => setTimeout(resolve, 1000 *5* attempt)); // Wait 1s, 2s
       }
     }
 
     if (!success) {
-      console.error(`🚨 Failed permanently after 3 attempts: ${itemName}`);
+      logger.error("sendOwnersToMonday", TAG, { "Failed permanently after 3 attempts": itemName });
+      failedOwners.push(itemName);
     }
   }
+  return failedOwners;
 }
 

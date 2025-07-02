@@ -39,11 +39,18 @@ export async function sendPdf(req, res) {
     }
 
     console.log("Sending subunits to Monday...");
-    const subunitIdMap = await sendSubunitsToMonday(shortLivedToken, subunitData, itemId, unitNumber);
+    const { subunitIdMap, failedSubunits } = await sendSubunitsToMonday(shortLivedToken, subunitData, itemId, unitNumber);
+    if (failedSubunits.length > 0) {
+      logger.warn("sendPdf", TAG, `Some subunits failed to upload: ${failedSubunits.join(', ')}`);
+    }
 
     console.log("Sending owners to Monday...");
-    await sendOwnersToMonday(shortLivedToken, ownersData, subunitIdMap);
-    console.log("Owners sent successfully");
+    const failedOwners = await sendOwnersToMonday(shortLivedToken, ownersData, subunitIdMap);
+    console.log("Owners sent finished");
+    if (failedOwners.length > 0) {
+      logger.warn("sendPdf", TAG, `Some owners failed to upload: ${failedOwners.join(', ')}`);
+    }
+    
     return res.status(200).send()
   } catch (err) {
     console.error("sendPdf", TAG, {"error":err});

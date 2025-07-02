@@ -1,6 +1,7 @@
 import initMondayClient from 'monday-sdk-js';
 
 const SUBUNIT_BOARD_ID = 1923677090;
+const TAG = "monday-upload-subunits";
 
 const columnMap = {
   "החלק ברכוש המשותף": "numeric_mkq62m7k",
@@ -33,6 +34,7 @@ const mondayClient = initMondayClient();
   mondayClient.setToken(token);
 
   const subunitIdMap = {};
+  const failedSubunits = [];
 
   for (const row of dfUnits) {
     const subunitId = String(row["תת חלקה"]).trim();
@@ -81,14 +83,15 @@ const mondayClient = initMondayClient();
       }
 
       if (!success && attempt < 3) {
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Wait 1s, 2s
+        await new Promise(resolve => setTimeout(resolve, 1000 *5* attempt)); // Wait 1s, 2s
       }
     }
 
     if (!success) {
-      console.error(`🚨 Failed permanently after 3 attempts: ${itemName}`);
+      logger.error("sendSubunitsToMonday", TAG, {"Failed permanently after 3 attempts":itemName});
+      failedSubunits.push(itemName);
     }
   }
 
-  return subunitIdMap;
+  return { subunitIdMap, failedSubunits };
 }
