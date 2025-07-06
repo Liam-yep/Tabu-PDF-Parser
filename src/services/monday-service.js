@@ -51,11 +51,6 @@ export const getFileInfo = async (token, itemId, columnId) => {
       throw new Error('Asset not found in item assets');
     }
 
-    logger.debug('Found asset in column', TAG, {
-      file_url: asset.public_url,
-      file_name: asset.name,
-    });
-
     return {
       file_url: asset.public_url,
       file_name: asset.name,
