@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import logger from '../services/logger/index.js';
-import { getFileInfo, send_notification, delete_all_subunits_before } from '../services/monday-service.js';
+import { getFileInfo, send_notification, delete_all_subunits_before, change_source_column } from '../services/monday-service.js';
 import { downloadFile } from '../services/file-service.js';
 import { processPdfFile } from '../services/pdf_parser.js'
 import { sendSubunitsToMonday } from '../services/monday-upload-subunits.js';
@@ -9,12 +9,17 @@ import { sendOwnersToMonday } from '../services/monday-upload-owners.js';
 const TAG = 'monday-controller';
 
 export async function sendPdf(req, res) {
+  let shortLivedToken, userId, accountId, itemId;
   try {
     console.log('sendPdf called');
     res.status(200).send()
-    const { accountId, userId, shortLivedToken } = req.session;
+    shortLivedToken = req.session.shortLivedToken;
+    userId = req.session.userId;
+    accountId = req.session.accountId;
+    itemId = req.body.payload.inputFields.itemId;
+
     const { inputFields } = req.body.payload;
-    const { itemId, PDFColumnId } = inputFields;
+    const { PDFColumnId } = inputFields;
     console.log("PDFColumnId",PDFColumnId, "itemId", itemId);
 
     const { file_url, file_name } = await getFileInfo(shortLivedToken, itemId, PDFColumnId);
@@ -38,6 +43,7 @@ export async function sendPdf(req, res) {
       console.warn(`Failed to delete file: ${err}`);
     }
     await delete_all_subunits_before(shortLivedToken, itemId, accountId)
+    await change_source_column(shortLivedToken, itemId, accountId)
     console.log("Sending subunits to Monday...");
     
     const { subunitIdMap, failedSubunits } = await sendSubunitsToMonday(shortLivedToken, subunitData, itemId, unitNumber, accountId);

@@ -33,7 +33,7 @@ export async function sendOwnersToMonday(token, dfOwners, subunitIdMap, accountI
 
   const { account_name, owners } = config;
   logger.debug("sendOwnersToMonday", TAG, {"account_name": account_name, "owners" : owners})
-  const { boardId, columnMap } = owners;
+  const { boardId, columnMap, source_column_id} = owners;
 
   const failedOwners = [];
 
@@ -50,7 +50,8 @@ export async function sendOwnersToMonday(token, dfOwners, subunitIdMap, accountI
     const columnValues = {
       [columnMap["תעודת זהות"]]: String(row["תעודת זהות"]).trim(),
       [columnMap["אחוז אחזקה בתת החלקה"]]: parsePercentage(row["אחוז אחזקה בתת החלקה"]),
-      [columnMap["תת חלקה"]]: { item_ids: [parseInt(subunitItemId)] }
+      [columnMap["תת חלקה"]]: { item_ids: [parseInt(subunitItemId)] },
+      [source_column_id]: { label: "נסח טאבו" }
     };
 
     let attempt = 0;

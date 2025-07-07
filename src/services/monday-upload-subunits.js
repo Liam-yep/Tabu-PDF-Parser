@@ -35,7 +35,7 @@ const mondayClient = initMondayClient();
 
   const { account_name, subunits } = config;
   logger.debug("sendSubunitsToMonday", TAG, {"account_name" : account_name, "subunits" : subunits})
-  const { boardId, columnMap } = subunits;
+  const { boardId, columnMap, source_column_id } = subunits;
 
   const subunitIdMap = {};
   const failedSubunits = [];
@@ -49,7 +49,8 @@ const mondayClient = initMondayClient();
       [columnMap["תיאור קומה"]]: { label: row["תיאור קומה"] },
       [columnMap["שטח במר"]]: parseFloat(row["שטח במר"]),
       [columnMap["משכנתה"]]: { label: row["משכנתה"] },
-      [columnMap["קשר לחלקה"]]: { item_ids: [parseInt(parentItemId)] }
+      [columnMap["קשר לחלקה"]]: { item_ids: [parseInt(parentItemId)] },
+      [source_column_id]: { label: "נסח טאבו" }
     };
 
     let attempt = 0;

@@ -94,7 +94,8 @@ export const delete_all_subunits_before = async (token, itemId, accountId) => {
   if (!config) {
     throw new Error(`No config found for account ${accountId}`);
   }
-  const { connect_to_subunits_column_id } = config;
+  const { units } = config;
+  const { connect_to_subunits_column_id } = units
   
   try {
     const mondayClient = initMondayClient();
@@ -131,12 +132,9 @@ export const delete_all_subunits_before = async (token, itemId, accountId) => {
           }`;
 
         const variables = { itemId: parseInt(item.id) };
-
-        logger.debug("📤 Sending delete mutation", TAG, { query: deleteMutation, variables });
-
         const response = await mondayClient.api(deleteMutation, { variables });
 
-          logger.info(`✅ Deleted item ${item.id}`, TAG);
+        logger.info(`✅ Deleted item ${item.id}`, TAG);
         } catch (err) {
           logger.error(`❌ Failed to delete item ${item.id}`, TAG, err);
         }
@@ -144,5 +142,45 @@ export const delete_all_subunits_before = async (token, itemId, accountId) => {
 
   } catch (err) {
     logger.error('❌ Error in delete_all_subunits_before', TAG, err);
+  }
+};
+
+
+export const change_source_column = async (token, itemId, accountId) => {
+  logger.debug("change_source_column starts", TAG);
+
+  const config = accountConfig[accountId];
+  if (!config) {
+    throw new Error(`No config found for account ${accountId}`);
+  }
+  const { units } = config;
+  const { source_column_id, boardId} = units;
+
+  try {
+    const mondayClient = initMondayClient();
+    mondayClient.setApiVersion('2024-07');
+    mondayClient.setToken(token);
+
+    const mutation = `
+      mutation ChangeStatus($boardId: ID!, $itemId: ID!, $columnId: String!, $value: JSON!) {
+        change_column_value(board_id: $boardId, item_id: $itemId, column_id: $columnId, value: $value) {
+          id
+        }
+      }
+    `;
+
+    const variables = {
+      boardId: boardId,
+      itemId: itemId.toString(), // חשוב שיהיה מחרוזת (ID ולא Int)
+      columnId: source_column_id,
+      value: JSON.stringify({ label: "נסח טאבו" })
+    };
+
+    logger.debug("📤 Sending status update mutation", TAG, { mutation, variables });
+
+    const response = await mondayClient.api(mutation, { variables });
+    logger.info("✅ Status column updated successfully", TAG, response);
+  } catch (err) {
+    logger.error("❌ Error in change_source_column", TAG, err);
   }
 };
