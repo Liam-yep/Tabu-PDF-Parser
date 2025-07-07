@@ -20,7 +20,6 @@ async function extractTextFromPdf(pdfPath) {
       const text = item.str.trim();
 
       const xRight = x + item.width;
-      console.log(text,"xStart:",x,"xEnd",xRight,"y",y)
 
       if (!text) continue;
 
@@ -186,7 +185,6 @@ function extractOwners(lines, subunitId) {
 
         // תנאי עצירה (הערות, תת חלקה, חכירות וכו׳)
         if (!validOwnerPattern.test(currText)) {
-          console.log("!validOwnerPattern.test(currText)",currText)
           if (
             currText.includes("הערות") ||
             currText.includes("תת חלקה") ||
@@ -199,12 +197,10 @@ function extractOwners(lines, subunitId) {
           const hasNameContinuation = lines[j].items.some(item =>
               item.xLeft >= 319 && item.xRight <= 446
             );
-            console.log("hasNameContinuation",hasNameContinuation)
             if (!hasNameContinuation) break;
 
             // אחרת, שורת המשך — נצרף אותה לשם של הבעלים האחרון
             if (lastOwner) {
-              console.log("lastOwner")
               lastOwner["שם בעלים"] += " " + removeParentheses(extractTextFromXRange(lines[j].items, 319, 446));
             } else {
               console.warn("⚠️ שורת המשך של בעלות ללא בעלים קודם:");
@@ -214,13 +210,11 @@ function extractOwners(lines, subunitId) {
           if (j >= lines.length) break;
 
           const nextText = lines[j].items.map(i => i.text).join(" ").trim();
-          console.log("nextText",nextText)    
           continue;
         }
 
         const owner = parseOwnerLine(lines[j].items); // ✅ שימוש במבנה החדש
         if (owner) {
-          console.log("owner",lines[j])
           owner["תת חלקה"] = subunitId;
           lastOwner = owner;
           owners.push(owner);
@@ -285,7 +279,6 @@ function parseSubunitBlock(block) {
   const subunitId = extractSubunitId(block);
 
   const subunitData = extractSubunitData(block, subunitId);
-  console.log("subunitData:", subunitData);
   const ownersData = extractOwners(block, subunitId);
 
   if (ownersData.length === 0) {
@@ -315,8 +308,6 @@ export async function processPdfFile(filePath) {
     console.log("🔢 מספר יחידה:", unitNumber);
     console.log("📦 כמות תתי־יחידות:", subUnits.length);
     const [subunitData, ownersData] = parseSubdivisions(subUnits);
-    console.log("subunitData",subunitData)
-    console.log("ownersData",ownersData)
 
     return { unitNumber, subunitData, ownersData };
   } catch (error) {

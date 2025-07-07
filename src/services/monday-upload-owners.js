@@ -32,7 +32,7 @@ export async function sendOwnersToMonday(token, dfOwners, subunitIdMap, accountI
   }
 
   const { account_name, owners } = config;
-  console.log("account_name", account_name, "owners",owners)
+  logger.debug("sendOwnersToMonday", TAG, {"account_name": account_name, "owners" : owners})
   const { boardId, columnMap } = owners;
 
   const failedOwners = [];

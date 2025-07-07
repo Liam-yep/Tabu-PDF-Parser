@@ -18,10 +18,11 @@ export const accountConfig = {
                 "אחוז אחזקה בתת החלקה": "numeric_mkr4ytb2",
                 "תת חלקה": "board_relation_mkr4hh21"
             }
-        }
+        },
+        connect_to_subunits_column_id : "board_relation_mkq6pa0w"
     },  
 
-    "72641226": {
+    "28210172": {
         account_name: "Gabay Group",
         subunits:{
             boardId: 1994898626,
@@ -40,7 +41,8 @@ export const accountConfig = {
                 "אחוז אחזקה בתת החלקה": "numeric_mkrvmj4s",
                 "תת חלקה": "board_relation_mkrrs48y"
             }
-        }
+        },
+        connect_to_subunits_column_id : "board_relation_mkrrqqmn"
     }
 }
 

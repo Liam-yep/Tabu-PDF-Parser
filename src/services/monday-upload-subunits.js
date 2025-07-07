@@ -34,7 +34,7 @@ const mondayClient = initMondayClient();
   }
 
   const { account_name, subunits } = config;
-  console.log("account_name", account_name, "subunits",subunits)
+  logger.debug("sendSubunitsToMonday", TAG, {"account_name" : account_name, "subunits" : subunits})
   const { boardId, columnMap } = subunits;
 
   const subunitIdMap = {};

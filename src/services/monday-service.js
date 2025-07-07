@@ -1,5 +1,7 @@
 import initMondayClient from "monday-sdk-js";
 import logger from "./logger/index.js";
+import { accountConfig } from '../helpers/config/account-config.js';
+
 
 const TAG = 'getFileInfo';
 
@@ -84,3 +86,63 @@ export const send_notification = async (token, user_id, itemId, text) => {
   }
 };
 
+
+export const delete_all_subunits_before = async (token, itemId, accountId) => {
+  logger.debug("delete_all_subunits_before starts", TAG)
+  
+  const config = accountConfig[accountId];
+  if (!config) {
+    throw new Error(`No config found for account ${accountId}`);
+  }
+  const { connect_to_subunits_column_id } = config;
+  
+  try {
+    const mondayClient = initMondayClient();
+    mondayClient.setApiVersion('2024-10');
+    mondayClient.setToken(token);
+
+    const query = `
+      query ($itemId: [ID!]) {
+        items(ids: $itemId) {
+          column_values(ids:["${connect_to_subunits_column_id}"]) {
+            ... on BoardRelationValue {
+              linked_items{
+                name
+                id
+              }
+            }
+          }
+        }
+      }`;
+      
+    const variables = { itemId };
+    const response = await mondayClient.api(query, { variables });
+    const linkedItems = response?.data?.items?.[0]?.column_values?.[0]?.linked_items || [];
+    logger.info(`Found ${linkedItems.length} linked items to delete`, TAG);
+    for (const item of linkedItems) {
+        try {
+          logger.debug(`🗑 Deleting item: ${item.name} (${item.id})`, TAG);
+
+          const deleteMutation = `
+          mutation ($itemId: ID!) {
+            delete_item(item_id: $itemId) {
+              id
+            }
+          }`;
+
+        const variables = { itemId: parseInt(item.id) };
+
+        logger.debug("📤 Sending delete mutation", TAG, { query: deleteMutation, variables });
+
+        const response = await mondayClient.api(deleteMutation, { variables });
+
+          logger.info(`✅ Deleted item ${item.id}`, TAG);
+        } catch (err) {
+          logger.error(`❌ Failed to delete item ${item.id}`, TAG, err);
+        }
+      }
+
+  } catch (err) {
+    logger.error('❌ Error in delete_all_subunits_before', TAG, err);
+  }
+};

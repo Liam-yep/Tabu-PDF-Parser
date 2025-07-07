@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import logger from '../services/logger/index.js';
-import { getFileInfo, send_notification } from '../services/monday-service.js';
+import { getFileInfo, send_notification, delete_all_subunits_before } from '../services/monday-service.js';
 import { downloadFile } from '../services/file-service.js';
 import { processPdfFile } from '../services/pdf_parser.js'
 import { sendSubunitsToMonday } from '../services/monday-upload-subunits.js';
@@ -37,8 +37,9 @@ export async function sendPdf(req, res) {
     } catch (err) {
       console.warn(`Failed to delete file: ${err}`);
     }
-
+    await delete_all_subunits_before(shortLivedToken, itemId, accountId)
     console.log("Sending subunits to Monday...");
+    
     const { subunitIdMap, failedSubunits } = await sendSubunitsToMonday(shortLivedToken, subunitData, itemId, unitNumber, accountId);
     if (failedSubunits.length > 0) {
       logger.warn("sendPdf", TAG, `Some subunits failed to upload: ${failedSubunits.join(', ')}`);
