@@ -181,7 +181,7 @@ function extractOwners(lines, subunitId) {
         const currLineObj = lines[j];
         const currText = currLineObj.items.map(i => i.text).join(" ").trim();
 
-        const validOwnerPattern = /(ירושה על פי הסכם|ירושה|ללא תמורה|מכר לפי צו בית משפט|מכר ללא תמורה|מכר|שנוי שם|תיקון טעות סופר|צוואה על פי הסכם|צוואה|רישום בית משותף|עודף)/;
+        const validOwnerPattern = /(ירושה על פי הסכם|ירושה|ללא תמורה|מכר לפי צו בית משפט|מכר ללא תמורה|מכר|שנוי שם|תיקון טעות סופר|צוואה על פי הסכם|צוואה|רישום בית משותף|עודף|עדכון פרטי זיהוי|צוואה - יורש אחר יורש)/;
 
         // תנאי עצירה (הערות, תת חלקה, חכירות וכו׳)
         if (!validOwnerPattern.test(currText)) {
