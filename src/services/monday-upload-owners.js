@@ -1,13 +1,8 @@
 import initMondayClient from 'monday-sdk-js';
+import logger from '../services/logger/index.js';
+import { accountConfig } from '../helpers/config/account-config.js';
 
-const OWNER_BOARD_ID = 1965912135;
 const TAG = "monday-upload-owners";
-
-const ownerColumnMap = {
-  "תעודת זהות": "text_mkr4jcrv",
-  "אחוז אחזקה בתת החלקה": "numeric_mkr4ytb2",
-  "תת חלקה": "board_relation_mkr4hh21"
-};
 
 function parsePercentage(value) {
   if (!value) return 0;
@@ -26,10 +21,19 @@ function parsePercentage(value) {
   }
 }
 
-export async function sendOwnersToMonday(token, dfOwners, subunitIdMap) {
+export async function sendOwnersToMonday(token, dfOwners, subunitIdMap, accountId) {
   const mondayClient = initMondayClient();
   mondayClient.setApiVersion('2024-07');
   mondayClient.setToken(token);
+
+  const config = accountConfig[accountId];
+  if (!config) {
+    throw new Error(`No config found for account ${accountId}`);
+  }
+
+  const { account_name, owners } = config;
+  console.log("account_name", account_name, "owners",owners)
+  const { boardId, columnMap } = owners;
 
   const failedOwners = [];
 
@@ -44,9 +48,9 @@ export async function sendOwnersToMonday(token, dfOwners, subunitIdMap) {
     
     const itemName = String(row["שם בעלים"]).trim();
     const columnValues = {
-      [ownerColumnMap["תעודת זהות"]]: String(row["תעודת זהות"]).trim(),
-      [ownerColumnMap["אחוז אחזקה בתת החלקה"]]: parsePercentage(row["אחוז אחזקה בתת החלקה"]),
-      [ownerColumnMap["תת חלקה"]]: { item_ids: [parseInt(subunitItemId)] }
+      [columnMap["תעודת זהות"]]: String(row["תעודת זהות"]).trim(),
+      [columnMap["אחוז אחזקה בתת החלקה"]]: parsePercentage(row["אחוז אחזקה בתת החלקה"]),
+      [columnMap["תת חלקה"]]: { item_ids: [parseInt(subunitItemId)] }
     };
 
     let attempt = 0;
@@ -59,7 +63,7 @@ export async function sendOwnersToMonday(token, dfOwners, subunitIdMap) {
         const response = await mondayClient.api(`
           mutation {
             create_item (
-              board_id: ${OWNER_BOARD_ID},
+              board_id: ${boardId},
               item_name: "${itemName}",
               column_values: ${JSON.stringify(JSON.stringify(columnValues))},
               create_labels_if_missing: true

@@ -18,13 +18,17 @@ async function extractTextFromPdf(pdfPath) {
       const y = item.transform[5];
       const x = item.transform[4];
       const text = item.str.trim();
+
+      const xRight = x + item.width;
+      console.log(text,"xStart:",x,"xEnd",xRight,"y",y)
+
       if (!text) continue;
 
       if (!linesMap[y]) {
         linesMap[y] = [];
       }
 
-      linesMap[y].push({ x, text });
+      linesMap[y].push({ xLeft: x, xRight, text });
     }
 
     const sortedYs = Object.keys(linesMap)
@@ -32,11 +36,11 @@ async function extractTextFromPdf(pdfPath) {
       .sort((a, b) => b - a);
 
     for (const y of sortedYs) {
-      const lineItems = linesMap[y]
-        .sort((a, b) => a.x - b.x)
-        .map(i => i.text);
-      const lineText = lineItems.join(" ");
-      allLines.push(lineText);
+      const lineItems = linesMap[y].sort((a, b) => a.xLeft - b.xLeft);
+      allLines.push({
+        y: Number(y),
+        items: lineItems
+      });
     }
   }
 
@@ -49,9 +53,11 @@ function cleanLinesFromHeaderBlock(lines) {
   let j = 0;
 
   while (!unitNumberFound && j < lines.length) {
-    const line = lines[j];
-    if (line.includes("גוש") && line.includes("חלקה")) {
-      const parts = line.split(/\s+/);
+    const lineObj = lines[j];
+    const textLine = lineObj.items.map(i => i.text).join(" ").trim();
+
+    if (textLine.includes("גוש") && textLine.includes("חלקה")) {
+      const parts = textLine.split(/\s+/);
       unitNumber = parts[0] || null;
       unitNumberFound = true;
     }
@@ -62,38 +68,42 @@ function cleanLinesFromHeaderBlock(lines) {
   let i = 0;
 
   while (i < lines.length) {
-    const line = lines[i];
+    const lineObj = lines[i];
+    const textLine = lineObj.items.map(i => i.text).join(" ").trim();
 
-    if (/^\d+\s+מתוך\s+\d+\s+עמוד$/.test(line)) {
+    if (/^\d+\s+מתוך\s+\d+\s+עמוד$/.test(textLine)) {
       i += 9; // דלג על 10 שורות (כולל הנוכחית)
       continue;
     }
 
-    if (line === "סוף נתונים") {
+    if (textLine === "סוף נתונים") {
       break;
     }
 
-    cleaned.push(line);
+    cleaned.push(lineObj);
     i++;
   }
 
   return [cleaned, unitNumber];
 }
 
+
 function splitIntoSubUnits(lines) {
   const subUnits = [];
   let currentUnit = [];
 
-  for (const line of lines) {
-    // שורה שמסמנת התחלה של תת-חלקה
-    if (/^\d+\s+תת\s+חלקה$/.test(line)) {
+  for (const lineObj of lines) {
+    const textLine = lineObj.items.map(i => i.text).join(" ").trim();
+
+    // בדיקה אם זו התחלה של תת-חלקה
+    if (/^\d+\s+תת\s+חלקה$/.test(textLine)) {
       if (currentUnit.length > 0) {
         subUnits.push(currentUnit);
       }
-      currentUnit = [line];
+      currentUnit = [lineObj]; // מתחיל תת חלקה חדשה
     } else {
       if (currentUnit.length > 0) {
-        currentUnit.push(line);
+        currentUnit.push(lineObj);
       }
     }
   }
@@ -104,6 +114,7 @@ function splitIntoSubUnits(lines) {
 
   return subUnits;
 }
+
 
 async function extractTextBlocks(pdfPath) {
   const rawLines = await extractTextFromPdf(pdfPath);
@@ -116,7 +127,17 @@ function removeParentheses(text) {
   return text.replace(/[()]/g, "").replace(/[״"]/g, "''").trim();
 }
 
-function parseOwnerLine(line) {
+
+function extractTextFromXRange(lineItems, minX, maxX) {
+  return lineItems
+    .filter(({ xLeft, xRight }) => xLeft < maxX && xRight > minX)
+    .map(({ text }) => text)
+    .join(" ")
+    .trim();
+}
+
+
+function parseOwnerLine(lineItems) {
   const owner = {
     "תת חלקה": null,
     "שם בעלים": null,
@@ -124,97 +145,84 @@ function parseOwnerLine(line) {
     "אחוז אחזקה בתת החלקה": null,
   };
 
-  let parts = []
-  let id = "";
-  let ownership = "";
-  if (
-  (line.includes("תיקון טעות סופר") && !line.includes("ת.ז")) ||
-  (line.includes("דרכון")) ||
-  (line.includes("רישום בית משותף") && (!line.includes("חברה") && !line.includes("ת.ז")))
-  )
- {
-    console.warn("⚠️ שורת בעלים לא תקינה:", line);
+  const xMap = {
+    share: [106, 167],     // אחוז אחזקה
+    id:    [167, 244],     // ת"ז
+    name:  [319, 446]      // שם בעלים
+  };
+
+  const name  = extractTextFromXRange(lineItems, ...xMap.name);
+  const id    = extractTextFromXRange(lineItems, ...xMap.id);
+  const share = extractTextFromXRange(lineItems, ...xMap.share);
+
+  if (!name) {
+    console.warn("⚠️ שורת בעלות לא תקינה:", lineItems.map(i => i.text).join(" "));
     return null;
   }
 
-  const stopPattern = /(ירושה על פי הסכם|ירושה|ללא תמורה|מכר לפי צו בית משפט|מכר ללא תמורה|מכר|שנוי שם|צוואה על פי הסכם|צוואה|רישום בית משותף|עודף|תיקון טעות סופר)/;
-  const match = line.match(stopPattern);
-  if (match) {
-    line = line.replace(match[0], "").trim();
-  }
-  
-
-  line = line.replace(" / ", "/");
-  
-  if (line.includes("ת.ז")) {
-    parts = line.split("ת.ז");
-    if (parts.length !== 2) {
-      console.warn("⚠️ לא זוהתה תבנית 'ת.ז' תקינה בשורה:", line);
-      return null;
-  }
-  } else if (line.includes("חברה")) {
-    parts = line.split("חברה");
-  }
-  
-  console.log("parts", parts)
-  const name = removeParentheses(parts[1]).trim();
-  owner["שם בעלים"] = name;
-
-  const partOneSplit = parts[0].trim().split(/\s+/);
-  if (partOneSplit.length < 2) {
-    console.warn("⚠️ פורמט לא תקני בשורת בעלים:", line);
-    return null;
-  }
-  if (partOneSplit.length === 3) {
-    id = partOneSplit[partOneSplit.length - 1];
-    ownership = partOneSplit[partOneSplit.length - 2];
-  } else if (partOneSplit.length === 4) {
-    id = [partOneSplit[partOneSplit.length - 2], partOneSplit[partOneSplit.length - 1]].join("");
-    ownership = partOneSplit[partOneSplit.length - 3];
-  }
-  owner["תעודת זהות"] = id
-    if (ownership === "בשלמות") {
-        ownership = 100.0;
-    }
-  owner["אחוז אחזקה בתת החלקה"] = ownership;
-  
+  owner["שם בעלים"] = removeParentheses(name);
+  owner["תעודת זהות"] = id?.trim() || null;
+  owner["אחוז אחזקה בתת החלקה"] = (share?.trim() === "בשלמות") ? "100.0" : share?.trim() || null;
 
   return owner;
 }
 
+
 function extractOwners(lines, subunitId) {
   const owners = [];
-
+  let lastOwner = null;
+  
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
+    const lineText = lines[i].items.map(i => i.text).join(" ");
 
-    if (line.includes("בעלויות")) {
+    if (lineText.includes("בעלויות")) {
       let j = i + 1;
 
       while (j < lines.length) {
-        let currLine = lines[j].trim();
+        const currLineObj = lines[j];
+        const currText = currLineObj.items.map(i => i.text).join(" ").trim();
 
-        // תנאים שמסמנים סוף מקטע בעלים
         const validOwnerPattern = /(ירושה על פי הסכם|ירושה|ללא תמורה|מכר לפי צו בית משפט|מכר ללא תמורה|מכר|שנוי שם|תיקון טעות סופר|צוואה על פי הסכם|צוואה|רישום בית משותף|עודף)/;
-        if (!validOwnerPattern.test(currLine)) {
-            if (currLine.includes("הערות") || currLine.includes("תת חלקה") || currLine.includes("משכנתאות") || currLine.includes("חכירות")) {
-            break; // סיום מקטע בעלים
-          }
-          
-          j++;
-          if (j >= lines.length){
-            break
-          }
- 
-          currLine = lines[j].trim();
-          if (!validOwnerPattern.test(currLine)) {
+
+        // תנאי עצירה (הערות, תת חלקה, חכירות וכו׳)
+        if (!validOwnerPattern.test(currText)) {
+          console.log("!validOwnerPattern.test(currText)",currText)
+          if (
+            currText.includes("הערות") ||
+            currText.includes("תת חלקה") ||
+            currText.includes("משכנתאות") ||
+            currText.includes("חכירות")
+          ) {
             break;
           }
+
+          const hasNameContinuation = lines[j].items.some(item =>
+              item.xLeft >= 319 && item.xRight <= 446
+            );
+            console.log("hasNameContinuation",hasNameContinuation)
+            if (!hasNameContinuation) break;
+
+            // אחרת, שורת המשך — נצרף אותה לשם של הבעלים האחרון
+            if (lastOwner) {
+              console.log("lastOwner")
+              lastOwner["שם בעלים"] += " " + removeParentheses(extractTextFromXRange(lines[j].items, 319, 446));
+            } else {
+              console.warn("⚠️ שורת המשך של בעלות ללא בעלים קודם:");
+            }
+
+          j++;
+          if (j >= lines.length) break;
+
+          const nextText = lines[j].items.map(i => i.text).join(" ").trim();
+          console.log("nextText",nextText)    
+          continue;
         }
 
-        const owner = parseOwnerLine(currLine);
+        const owner = parseOwnerLine(lines[j].items); // ✅ שימוש במבנה החדש
         if (owner) {
+          console.log("owner",lines[j])
           owner["תת חלקה"] = subunitId;
+          lastOwner = owner;
           owners.push(owner);
         }
 
@@ -226,28 +234,31 @@ function extractOwners(lines, subunitId) {
   return owners;
 }
 
+
 function extractSubunitData(lines, subunitId) {
-  const isMortgage = lines.some(line => line.includes("משכנתה"));
+  const isMortgage = lines.some(line =>
+    line.items.some(item => item.text.includes("משכנתה"))
+  );
 
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (line.includes("שטח") && line.includes('במ"ר') && i + 1 < lines.length) {
-      const dataLine = lines[i + 1].trim().replace(" / ", "/");
-      const parts = dataLine.split(/\s+/);
-      const partInCommon = parts[0];
-      const unitArea = parts[parts.length - 1];
-      let floor = parts[parts.length - 2];
+    const headerLine = lines[i];
+    const headerText = headerLine.items.map(i => i.text).join(" ").trim();
 
-      // תיקון RTL במידת הצורך (אם הטקסט כולל אותיות עבריות)
-    //   if (/[\u0590-\u05FF]/.test(floor)) {
-    //     floor = floor.split("").reverse().join("");
-    //   }
+    if (headerText.includes("שטח") && headerText.includes('במ"ר') && i + 1 < lines.length) {
+      const valueLine = lines[i + 1].items;
+
+      // 💡 תחליף פה את הערכים לפי ה-Xים הרלוונטיים מתוך ה־PDF שלך
+      const xMap = {
+        shared: [14, 106],     // "החלק ברכוש המשותף"
+        floor: [276, 464],     // "תיאור קומה"
+        area: [510, 564]       // "שטח במר"
+      };
 
       return [{
         "תת חלקה": subunitId,
-        "החלק ברכוש המשותף": partInCommon,
-        "תיאור קומה": floor,
-        "שטח במר": unitArea,
+        "החלק ברכוש המשותף": extractTextFromXRange(valueLine, ...xMap.shared),
+        "תיאור קומה": extractTextFromXRange(valueLine, ...xMap.floor),
+        "שטח במר": extractTextFromXRange(valueLine, ...xMap.area),
         "משכנתה": isMortgage ? "קיימת" : "לא קיימת"
       }];
     }
@@ -256,23 +267,25 @@ function extractSubunitData(lines, subunitId) {
   return [];
 }
 
+
+
 function extractSubunitId(lines) {
-  
   for (const line of lines) {
-    if (line.includes("תת חלקה")) {
-      const match = line.match(/^(\d+)\s+תת\s+חלקה$/);
-      if (match) {
-        return match[1];
-      }
+    const textLine = line.items.map(i => i.text).join(" ").trim();
+    const match = textLine.match(/^(\d+)\s+תת\s+חלקה$/);
+    if (match) {
+      return match[1];
     }
   }
   return null;
 }
 
+
 function parseSubunitBlock(block) {
   const subunitId = extractSubunitId(block);
 
   const subunitData = extractSubunitData(block, subunitId);
+  console.log("subunitData:", subunitData);
   const ownersData = extractOwners(block, subunitId);
 
   if (ownersData.length === 0) {
@@ -280,6 +293,7 @@ function parseSubunitBlock(block) {
   }
   return [subunitData, ownersData];
 }
+
 
 function parseSubdivisions(subdivisionBlocks) {
   const allSubunits = [];
@@ -300,8 +314,9 @@ export async function processPdfFile(filePath) {
     const { subUnits, unitNumber } = await extractTextBlocks(filePath);
     console.log("🔢 מספר יחידה:", unitNumber);
     console.log("📦 כמות תתי־יחידות:", subUnits.length);
-
     const [subunitData, ownersData] = parseSubdivisions(subUnits);
+    console.log("subunitData",subunitData)
+    console.log("ownersData",ownersData)
 
     return { unitNumber, subunitData, ownersData };
   } catch (error) {

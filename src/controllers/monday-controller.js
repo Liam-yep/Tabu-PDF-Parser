@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import logger from '../services/logger/index.js';
-import { getFileInfo } from '../services/monday-service.js';
+import { getFileInfo, send_notification } from '../services/monday-service.js';
 import { downloadFile } from '../services/file-service.js';
 import { processPdfFile } from '../services/pdf_parser.js'
 import { sendSubunitsToMonday } from '../services/monday-upload-subunits.js';
@@ -11,7 +11,8 @@ const TAG = 'monday-controller';
 export async function sendPdf(req, res) {
   try {
     console.log('sendPdf called');
-    const { shortLivedToken } = req.session;
+    res.status(200).send()
+    const { accountId, userId, shortLivedToken } = req.session;
     const { inputFields } = req.body.payload;
     const { itemId, PDFColumnId } = inputFields;
     console.log("PDFColumnId",PDFColumnId, "itemId", itemId);
@@ -22,11 +23,10 @@ export async function sendPdf(req, res) {
     const filePath = await downloadFile(file_url, file_name);
     if (!filePath) {
       console.error("Failed to download file");
-      return res.status(400).send({"severityCode" : 4000,
-        "notificationErrorTitle" : "Failed to download file",
-        "notificationErrorDescription" : "Failed to download file",
-        "runtimeErrorDescription" : `Failed to download file`});
+      await send_notification(shortLivedToken, userId, itemId, "Failed to download file")
+      return;
     }
+
 
     console.log("📥 File saved to:", filePath);
     
@@ -39,25 +39,23 @@ export async function sendPdf(req, res) {
     }
 
     console.log("Sending subunits to Monday...");
-    const { subunitIdMap, failedSubunits } = await sendSubunitsToMonday(shortLivedToken, subunitData, itemId, unitNumber);
+    const { subunitIdMap, failedSubunits } = await sendSubunitsToMonday(shortLivedToken, subunitData, itemId, unitNumber, accountId);
     if (failedSubunits.length > 0) {
       logger.warn("sendPdf", TAG, `Some subunits failed to upload: ${failedSubunits.join(', ')}`);
     }
 
     console.log("Sending owners to Monday...");
-    const failedOwners = await sendOwnersToMonday(shortLivedToken, ownersData, subunitIdMap);
+    const failedOwners = await sendOwnersToMonday(shortLivedToken, ownersData, subunitIdMap, accountId);
     console.log("Owners sent finished");
     if (failedOwners.length > 0) {
       logger.warn("sendPdf", TAG, `Some owners failed to upload: ${failedOwners.join(', ')}`);
     }
     console.log("returning 200");
-    return res.status(200).send()
+    return
   } catch (err) {
     console.error("sendPdf", TAG, {"error":err});
-    return res.status(400).send({"severityCode" : 4000,
-        "notificationErrorTitle" : "internal server error",
-        "notificationErrorDescription" : "internal server error - Tabu PDF Parser",
-        "runtimeErrorDescription" : `internal server error`});
+    await send_notification(shortLivedToken, userId, itemId, "internal server error - Tabu PDF Parser")
+    return 
   }
 }
 
