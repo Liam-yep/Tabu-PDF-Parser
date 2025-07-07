@@ -85,7 +85,7 @@ export async function sendOwnersToMonday(token, dfOwners, subunitIdMap, accountI
         }
 
       } catch (error) {
-        console.error(`❌ Attempt ${attempt} – Error creating owner item ${itemName}:`, error);
+        console.error("sendOwnersToMonday", TAG, {"❌ Attempt": attempt,"Error creating owner item" :itemName, "error": error});
       }
 
       if (!success && attempt < 3) {
