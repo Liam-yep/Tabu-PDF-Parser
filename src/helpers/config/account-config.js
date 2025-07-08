@@ -17,14 +17,16 @@ export const accountConfig = {
             columnMap: {    
                 "תעודת זהות": "text_mkr4jcrv",
                 "אחוז אחזקה בתת החלקה": "numeric_mkr4ytb2",
-                "תת חלקה": "board_relation_mkr4hh21"
+                "תת חלקה": "board_relation_mkr4hh21",
+                "סוג זיהוי": "dropdown_mksk4a30",
             },
             source_column_id: "color_mksfnhrz"
         },
         units:{
             boardId: 1923674628,
             connect_to_subunits_column_id : "board_relation_mkq6pa0w",
-            source_column_id : "color_mkske7b0"
+            source_column_id : "color_mkske7b0",
+            trigger_column_id: "color_mks7nkf3"
         }
     },  
 
@@ -46,14 +48,16 @@ export const accountConfig = {
             columnMap: {    
                 "תעודת זהות": "text_mkrryxqe",
                 "אחוז אחזקה בתת החלקה": "numeric_mkrvmj4s",
-                "תת חלקה": "board_relation_mkrrs48y"
+                "תת חלקה": "board_relation_mkrrs48y",
+                "סוג זיהוי": "dropdown_mksmatqm",
             },
             source_column_id: "color_mksm1nm5"
         },
         units:{
             boardId: 1995160277,
             connect_to_subunits_column_id : "board_relation_mkrrqqmn",
-            source_column_id : "color_mksmt2gv"
+            source_column_id : "color_mksmt2gv",
+            trigger_column_id: "color_mksfxcwe"
         }  
     }
 }

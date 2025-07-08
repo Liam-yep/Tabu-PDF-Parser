@@ -184,3 +184,43 @@ export const change_source_column = async (token, itemId, accountId) => {
     logger.error("❌ Error in change_source_column", TAG, err);
   }
 };
+
+
+export const send_failed_status = async (token, itemId, accountId) => {
+  logger.debug("send_failed_status starts", TAG);
+
+  const config = accountConfig[accountId];
+  if (!config) {
+    throw new Error(`No config found for account ${accountId}`);
+  }
+  const { units } = config;
+  const { trigger_column_id, boardId} = units;
+
+  try {
+    const mondayClient = initMondayClient();
+    mondayClient.setApiVersion('2024-07');
+    mondayClient.setToken(token);
+
+    const mutation = `
+      mutation ChangeStatus($boardId: ID!, $itemId: ID!, $columnId: String!, $value: JSON!) {
+        change_column_value(board_id: $boardId, item_id: $itemId, column_id: $columnId, value: $value) {
+          id
+        }
+      }
+    `;
+
+    const variables = {
+      boardId: boardId,
+      itemId: itemId.toString(), // חשוב שיהיה מחרוזת (ID ולא Int)
+      columnId: trigger_column_id,
+      value: JSON.stringify({ label: "נכשל" })
+    };
+
+    logger.debug("Sending send_failed_status", TAG, { mutation, variables });
+
+    const response = await mondayClient.api(mutation, { variables });
+    logger.info("✅ Status column updated successfully send_failed_status", TAG, response);
+  } catch (err) {
+    logger.error("❌ Error in send_failed_status", TAG, err);
+  }
+};

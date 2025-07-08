@@ -142,17 +142,20 @@ function parseOwnerLine(lineItems) {
     "שם בעלים": null,
     "תעודת זהות": null,
     "אחוז אחזקה בתת החלקה": null,
+    "סוג זיהוי": null
   };
 
   const xMap = {
     share: [106, 167],     // אחוז אחזקה
     id:    [167, 244],     // ת"ז
+    typeOfId: [244, 319],  // סוג זיהוי
     name:  [319, 446]      // שם בעלים
   };
 
   const name  = extractTextFromXRange(lineItems, ...xMap.name);
   const id    = extractTextFromXRange(lineItems, ...xMap.id);
   const share = extractTextFromXRange(lineItems, ...xMap.share);
+  const typeOfId = extractTextFromXRange(lineItems, ...xMap.typeOfId);
 
   if (!name) {
     console.warn("⚠️ שורת בעלות לא תקינה:", lineItems.map(i => i.text).join(" "));
@@ -162,6 +165,7 @@ function parseOwnerLine(lineItems) {
   owner["שם בעלים"] = removeParentheses(name);
   owner["תעודת זהות"] = id?.trim() || null;
   owner["אחוז אחזקה בתת החלקה"] = (share?.trim() === "בשלמות") ? "100.0" : share?.trim() || null;
+  owner["סוג זיהוי"] = typeOfId;
 
   return owner;
 }

@@ -1,8 +1,10 @@
 import express from 'express';
+import authRoutes from './auth.js';
 import mondayRoutes from './monday.js';
 
 const router = express.Router();
 
+router.use(authRoutes);
 router.use(mondayRoutes);
 
 router.get('/', function (req, res) {

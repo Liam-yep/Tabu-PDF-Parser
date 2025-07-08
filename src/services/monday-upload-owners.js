@@ -51,7 +51,8 @@ export async function sendOwnersToMonday(token, dfOwners, subunitIdMap, accountI
       [columnMap["תעודת זהות"]]: String(row["תעודת זהות"]).trim(),
       [columnMap["אחוז אחזקה בתת החלקה"]]: parsePercentage(row["אחוז אחזקה בתת החלקה"]),
       [columnMap["תת חלקה"]]: { item_ids: [parseInt(subunitItemId)] },
-      [source_column_id]: { label: "נסח טאבו" }
+      [source_column_id]: { label: "נסח טאבו" },
+      [columnMap["סוג זיהוי"]]: { labels: [String(row["סוג זיהוי"]).trim()] },
     };
 
     let attempt = 0;
