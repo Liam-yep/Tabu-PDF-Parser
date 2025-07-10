@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import logger from '../services/logger/index.js';
-import { getFileInfo, send_notification, delete_all_subunits_before, change_source_column, send_failed_status } from '../services/monday-service.js';
+import { getFileInfo, send_notification, delete_all_subunits_before, change_units_columns, send_failed_status } from '../services/monday-service.js';
 import { downloadFile } from '../services/file-service.js';
 import { processPdfFile } from '../services/pdf_parser.js'
 import { sendSubunitsToMonday } from '../services/monday-upload-subunits.js';
@@ -47,7 +47,7 @@ export async function sendPdf(req, res) {
 
     console.log("📥 File saved to:", filePath);
     
-    const { unitNumber, subunitData, ownersData } = await processPdfFile(filePath);
+    const { unitNumber, blockNumber, subunitData, ownersData, processPdfFileFailedOwners, processPdfFileFaileSubunits } = await processPdfFile(filePath);
     console.log("PDF parsed successfully");
     try {
       await fs.unlink(filePath);
@@ -55,7 +55,7 @@ export async function sendPdf(req, res) {
       console.warn(`Failed to delete file: ${err}`);
     }
     await delete_all_subunits_before(token, itemId, accountId)
-    await change_source_column(token, itemId, accountId)
+    await change_units_columns(token, itemId, accountId, unitNumber, blockNumber)
     console.log("Sending subunits to Monday...");
     
     const { subunitIdMap, failedSubunits } = await sendSubunitsToMonday(token, subunitData, itemId, unitNumber, accountId);
@@ -69,6 +69,7 @@ export async function sendPdf(req, res) {
     if (failedOwners.length > 0) {
       logger.warn("sendPdf", TAG, `Some owners failed to upload: ${failedOwners.join(', ')}`);
     }
+    await send_technical_notes(token, itemId, accountId, processPdfFileFailedOwners, processPdfFileFaileSubunits, failedOwners, failedSubunits);
     console.log("returning 200");
     return
   } catch (err) {

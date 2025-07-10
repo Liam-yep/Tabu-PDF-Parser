@@ -48,6 +48,7 @@ async function extractTextFromPdf(pdfPath) {
 
 function cleanLinesFromHeaderBlock(lines) {
   let unitNumber = null;
+  let blockNumber = null;
   let unitNumberFound = false;
   let j = 0;
 
@@ -58,6 +59,7 @@ function cleanLinesFromHeaderBlock(lines) {
     if (textLine.includes("גוש") && textLine.includes("חלקה")) {
       const parts = textLine.split(/\s+/);
       unitNumber = parts[0] || null;
+      blockNumber = parts[2]|| null;
       unitNumberFound = true;
     }
     j++;
@@ -83,7 +85,7 @@ function cleanLinesFromHeaderBlock(lines) {
     i++;
   }
 
-  return [cleaned, unitNumber];
+  return [cleaned, unitNumber, blockNumber];
 }
 
 
@@ -117,12 +119,13 @@ function splitIntoSubUnits(lines) {
 
 async function extractTextBlocks(pdfPath) {
   const rawLines = await extractTextFromPdf(pdfPath);
-  const [cleanedLines, unitNumber] = cleanLinesFromHeaderBlock(rawLines);
+  const [cleanedLines, unitNumber, blockNumber] = cleanLinesFromHeaderBlock(rawLines);
   const subUnits = splitIntoSubUnits(cleanedLines);
-  return { subUnits, unitNumber };
+  return { subUnits, unitNumber, blockNumber };
 }
 
-function removeParentheses(text) {
+
+function removeParentheses(text = "") {
   return text.replace(/[()]/g, "").replace(/[״"]/g, "''").trim();
 }
 
@@ -142,30 +145,34 @@ function parseOwnerLine(lineItems) {
     "שם בעלים": null,
     "תעודת זהות": null,
     "אחוז אחזקה בתת החלקה": null,
-    "סוג זיהוי": null
+    "סוג זיהוי": null,
+    "מספר רישום בעלות": null, // הערך הכי שמאלי תחת בעלויות לדוגמה 6924/1990/2
+    "סוג הבעלות": null // הערך הכי ימני לדוגמה מכר או צוואה
   };
 
   const xMap = {
+    ownershipRegistrationNumber:  [0, 106],  // מספר רישום בעלות
     share: [106, 167],     // אחוז אחזקה
     id:    [167, 244],     // ת"ז
     typeOfId: [244, 319],  // סוג זיהוי
-    name:  [319, 446]      // שם בעלים
+    name:  [319, 446],      // שם בעלים
+    transferType:  [446, 564],  // סוג הבעלות
   };
 
   const name  = extractTextFromXRange(lineItems, ...xMap.name);
   const id    = extractTextFromXRange(lineItems, ...xMap.id);
   const share = extractTextFromXRange(lineItems, ...xMap.share);
   const typeOfId = extractTextFromXRange(lineItems, ...xMap.typeOfId);
+  const ownershipRegistrationNumber = extractTextFromXRange(lineItems, ...xMap.ownershipRegistrationNumber);
+  const transferType = extractTextFromXRange(lineItems, ...xMap.transferType);
 
-  if (!name) {
-    console.warn("⚠️ שורת בעלות לא תקינה:", lineItems.map(i => i.text).join(" "));
-    return null;
-  }
-
-  owner["שם בעלים"] = removeParentheses(name);
+  owner["שם בעלים"] = removeParentheses(name) || null;
   owner["תעודת זהות"] = id?.trim() || null;
   owner["אחוז אחזקה בתת החלקה"] = (share?.trim() === "בשלמות") ? "100.0" : share?.trim() || null;
-  owner["סוג זיהוי"] = typeOfId;
+  owner["סוג זיהוי"] = typeOfId?.trim() || null;
+  owner["מספר רישום בעלות"] = ownershipRegistrationNumber?.trim() || null;
+  owner["סוג הבעלות"] = transferType?.trim() || null;
+
 
   return owner;
 }
@@ -189,41 +196,47 @@ function extractOwners(lines, subunitId) {
 
         // תנאי עצירה (הערות, תת חלקה, חכירות וכו׳)
         if (!validOwnerPattern.test(currText)) {
-          if (
+
+          const owner = parseOwnerLine(lines[j].items);
+          if (owner["שם בעלים"] && owner["סוג הבעלות"] && owner["אחוז אחזקה בתת החלקה"]){
+            owner["תת חלקה"] = subunitId;
+            lastOwner = owner;
+            owners.push(owner);
+          }
+
+          else if (
             currText.includes("הערות") ||
             currText.includes("תת חלקה") ||
             currText.includes("משכנתאות") ||
-            currText.includes("חכירות")
+            currText.includes("חכירות") ||
+            currText.includes("הצמדות") ||
+            currText.includes("זיקות הנאה")
           ) {
             break;
           }
 
-          const hasNameContinuation = lines[j].items.some(item =>
-              item.xLeft >= 319 && item.xRight <= 446
-            );
-            if (!hasNameContinuation) break;
-
             // אחרת, שורת המשך — נצרף אותה לשם של הבעלים האחרון
-            if (lastOwner) {
-              lastOwner["שם בעלים"] += " " + removeParentheses(extractTextFromXRange(lines[j].items, 319, 446));
-            } else {
-              console.warn("⚠️ שורת המשך של בעלות ללא בעלים קודם:");
+          else if (lastOwner && owner["שם בעלים"]) {
+            lastOwner["שם בעלים"] += " " + removeParentheses(owner["שם בעלים"]);
+            
+          } else {
+            console.warn(`⚠️ בעיה עם תת חלקה ${subunitId} בזמן חילוץ בעלים`);
+            return null;
+          }
+
+        } else {
+          const owner = parseOwnerLine(lines[j].items); // ✅ שימוש במבנה החדש
+          if (owner) {
+            const hasValidName = !!owner["שם בעלים"];
+            if (!hasValidName) {
+              console.warn("⚠️ שורת בעלים לא תקינה – חסר שם");
+              return null;
             }
-
-          j++;
-          if (j >= lines.length) break;
-
-          const nextText = lines[j].items.map(i => i.text).join(" ").trim();
-          continue;
+            owner["תת חלקה"] = subunitId;
+            lastOwner = owner;
+            owners.push(owner);
+          }
         }
-
-        const owner = parseOwnerLine(lines[j].items); // ✅ שימוש במבנה החדש
-        if (owner) {
-          owner["תת חלקה"] = subunitId;
-          lastOwner = owner;
-          owners.push(owner);
-        }
-
         j++;
       }
     }
@@ -235,7 +248,7 @@ function extractOwners(lines, subunitId) {
 
 function extractSubunitData(lines, subunitId) {
   const isMortgage = lines.some(line =>
-    line.items.some(item => item.text.includes("משכנתה"))
+    line.items.some(item => item.text.includes("משכנתאות"))
   );
 
   for (let i = 0; i < lines.length; i++) {
@@ -288,32 +301,43 @@ function parseSubunitBlock(block) {
   if (ownersData.length === 0) {
     console.warn(`⚠️ לא נמצאו בעלים עבור תת חלקה ${subunitId}`);
   }
-  return [subunitData, ownersData];
+  return [subunitData, ownersData, subunitId];
 }
 
 
 function parseSubdivisions(subdivisionBlocks) {
   const allSubunits = [];
   const allOwners = [];
+  const failedOwners = [];
+  const faileSubunits = [];
 
   for (const block of subdivisionBlocks) {
-    const [subunitData, ownersData] = parseSubunitBlock(block);
+    const [subunitData, ownersData, subunitId] = parseSubunitBlock(block);
     allSubunits.push(...subunitData);
     allOwners.push(...ownersData);
-  }
 
-  return [allSubunits, allOwners];
+    if (ownersData.length === 0) {
+    error_text = `⚠️ שגיאה במידע על בעלים של תת חלקה ${subunitId}`
+    failedOwners.push(...error_text)
+    }
+
+    if (subunitData.length === 0) {
+    error_text = `⚠️ שגיאה במידע על תת חלקה ${subunitId}`
+    faileSubunits.push(...error_text)
+    }
+  }
+  return [allSubunits, allOwners, failedOwners, faileSubunits];
 }
 
 
 export async function processPdfFile(filePath) {
   try {
-    const { subUnits, unitNumber } = await extractTextBlocks(filePath);
-    console.log("🔢 מספר יחידה:", unitNumber);
+    const { subUnits, unitNumber, blockNumber } = await extractTextBlocks(filePath);
+    console.log("🔢 מספר יחידה:", unitNumber, "מספר גוש", blockNumber);
     console.log("📦 כמות תתי־יחידות:", subUnits.length);
-    const [subunitData, ownersData] = parseSubdivisions(subUnits);
+    const [subunitData, ownersData, failedOwners, faileSubunits] = parseSubdivisions(subUnits);
 
-    return { unitNumber, subunitData, ownersData };
+    return { unitNumber, blockNumber, subunitData, ownersData, failedOwners, faileSubunits};
   } catch (error) {
     console.error("❌ שגיאה בעיבוד קובץ PDF:", error);
     throw error;

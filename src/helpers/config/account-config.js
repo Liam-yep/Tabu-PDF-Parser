@@ -24,9 +24,12 @@ export const accountConfig = {
         },
         units:{
             boardId: 1923674628,
-            connect_to_subunits_column_id : "board_relation_mkq6pa0w",
-            source_column_id : "color_mkske7b0",
-            trigger_column_id: "color_mks7nkf3"
+            connect_to_subunits_column_id : "board_relation_mkq6pa0w", // חיבור לתתי חלקות
+            source_column_id : "color_mkske7b0", // עמודת מקור
+            trigger_column_id: "color_mks7nkf3", // טריגר נסח טאבו
+            block_column_id: "text_mkrj72wg", // גוש
+            unit_column_id: "name", // חלקה(מזין לשם האייטם)
+            technical_errors_column_id: "long_text_mksk5948", // טכני -פירוט שגיאה
         }
     },  
 
@@ -57,7 +60,10 @@ export const accountConfig = {
             boardId: 1995160277,
             connect_to_subunits_column_id : "board_relation_mkrrqqmn",
             source_column_id : "color_mksmt2gv",
-            trigger_column_id: "color_mksfxcwe"
+            trigger_column_id: "color_mksfxcwe", // טריגר נסח טאבו
+            block_column_id: "text_mksq9npq", // גוש
+            unit_column_id: "text_mksq8b5t", // חלקה(לעמודה ולא לשם האייטם)
+            technical_errors_column_id: "long_text_mksk2a5y", // טכני -פירוט שגיאה
         }  
     }
 }

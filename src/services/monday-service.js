@@ -146,15 +146,15 @@ export const delete_all_subunits_before = async (token, itemId, accountId) => {
 };
 
 
-export const change_source_column = async (token, itemId, accountId) => {
-  logger.debug("change_source_column starts", TAG);
+export const change_units_columns = async (token, itemId, accountId, unitNumber, blockNumber) => {
+  logger.debug("change_units_columns starts", TAG);
 
   const config = accountConfig[accountId];
   if (!config) {
     throw new Error(`No config found for account ${accountId}`);
   }
   const { units } = config;
-  const { source_column_id, boardId} = units;
+  const { boardId, source_column_id, unit_column_id, block_column_id} = units;
 
   try {
     const mondayClient = initMondayClient();
@@ -162,26 +162,35 @@ export const change_source_column = async (token, itemId, accountId) => {
     mondayClient.setToken(token);
 
     const mutation = `
-      mutation ChangeStatus($boardId: ID!, $itemId: ID!, $columnId: String!, $value: JSON!) {
-        change_column_value(board_id: $boardId, item_id: $itemId, column_id: $columnId, value: $value) {
+      mutation ChangeMultiple($boardId: ID!, $itemId: ID!, $columnValues: JSON!) {
+        change_multiple_column_values(
+          board_id: $boardId,
+          item_id: $itemId,
+          column_values: $columnValues
+        ) {
           id
         }
       }
     `;
 
-    const variables = {
-      boardId: boardId,
-      itemId: itemId.toString(), // חשוב שיהיה מחרוזת (ID ולא Int)
-      columnId: source_column_id,
-      value: JSON.stringify({ label: "נסח טאבו" })
+    const columnValues = {
+      [source_column_id]: { label: "נסח טאבו" },
+      [unit_column_id]: unitNumber.toString(),     // מומלץ כטקסט – תואם לעמודת טקסט/מספר
+      [block_column_id]: blockNumber.toString()    // כנ"ל
     };
 
-    logger.debug("📤 Sending status update mutation", TAG, { mutation, variables });
+    const variables = {
+      boardId: boardId,
+      itemId: itemId.toString(),
+      columnValues: JSON.stringify(columnValues)
+    };
+
+    logger.debug("📤 Sending change_units_columns", TAG, { mutation, variables });
 
     const response = await mondayClient.api(mutation, { variables });
     logger.info("✅ Status column updated successfully", TAG, response);
   } catch (err) {
-    logger.error("❌ Error in change_source_column", TAG, err);
+    logger.error("❌ Error in change_units_columns", TAG, err);
   }
 };
 
@@ -222,5 +231,87 @@ export const send_failed_status = async (token, itemId, accountId) => {
     logger.info("✅ Status column updated successfully send_failed_status", TAG, response);
   } catch (err) {
     logger.error("❌ Error in send_failed_status", TAG, err);
+  }
+};
+
+
+export const send_technical_notes = async (
+  token,
+  itemId,
+  accountId,
+  failedOwnersFromPdf = [],
+  failedSubunitsFromPdf = [],
+  failedOwnersFromUpload = [],
+  failedSubunitsFromUpload = []
+) => {
+  logger.debug("send_technical_notes starts", TAG);
+
+  const config = accountConfig[accountId];
+  if (!config) {
+    throw new Error(`No config found for account ${accountId}`);
+  }
+
+  const { units } = config;
+  const { boardId, technical_errors_column_id } = units;
+
+  const errors = [];
+
+  if (failedSubunitsFromPdf.length > 0) {
+    errors.push("❗ שגיאות בקריאת תתי־חלקות מה-PDF:");
+    errors.push(...failedSubunitsFromPdf.map(e => `• ${e}`));
+  }
+
+  if (failedOwnersFromPdf.length > 0) {
+    errors.push("❗ שגיאות בזיהוי בעלי זכויות מה-PDF:");
+    errors.push(...failedOwnersFromPdf.map(e => `• ${e}`));
+  }
+
+  if (failedSubunitsFromUpload.length > 0) {
+    errors.push("❗ שגיאות בהעלאת תתי־חלקות למאנדיי:");
+    errors.push(...failedSubunitsFromUpload.map(e => `• ${e}`));
+  }
+
+  if (failedOwnersFromUpload.length > 0) {
+    errors.push("❗ שגיאות בהעלאת בעלי זכויות למאנדיי:");
+    errors.push(...failedOwnersFromUpload.map(e => `• ${e}`));
+  }
+
+  if (errors.length === 0) {
+    logger.info("✅ אין שגיאות בתהליך. הכל עלה בהצלחה.", TAG);
+    return;
+  }
+  const fullMessage = errors.join('\n');
+
+  try {
+    const mondayClient = initMondayClient();
+    mondayClient.setApiVersion("2024-07");
+    mondayClient.setToken(token);
+
+    const mutation = `
+      mutation ChangeText($boardId: ID!, $itemId: ID!, $columnId: String!, $value: JSON!) {
+        change_column_value(
+          board_id: $boardId,
+          item_id: $itemId,
+          column_id: $columnId,
+          value: $value
+        ) {
+          id
+        }
+      }
+    `;
+
+    const variables = {
+      boardId: boardId,
+      itemId: itemId.toString(),
+      columnId: technical_errors_column_id,
+      value: JSON.stringify(fullMessage)
+    };
+
+    logger.debug("Sending send_technical_notes", TAG, { mutation, variables });
+
+    const response = await mondayClient.api(mutation, { variables });
+    logger.info("✅ Technical notes updated successfully", TAG, response);
+  } catch (err) {
+    logger.error("❌ Error in send_technical_notes", TAG, err);
   }
 };
