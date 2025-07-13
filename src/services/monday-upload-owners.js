@@ -61,7 +61,6 @@ export async function sendOwnersToMonday(token, dfOwners, subunitIdMap, accountI
     while (attempt < 3 && !success) {
       try {
         attempt++;
-        console.log(`Attempt ${attempt} to create owner item: ${itemName}`);
         const response = await mondayClient.api(`
           mutation {
             create_item (
@@ -74,7 +73,6 @@ export async function sendOwnersToMonday(token, dfOwners, subunitIdMap, accountI
             }
           }
         `);
-        console.log("After Response");
         const itemId = response?.data?.create_item?.id;
         if (itemId) {
           success = true;
@@ -95,8 +93,9 @@ export async function sendOwnersToMonday(token, dfOwners, subunitIdMap, accountI
     }
 
     if (!success) {
-      logger.error("sendOwnersToMonday", TAG, { "Failed permanently after 3 attempts": itemName });
-      failedOwners.push(itemName);
+      const nameAndSubUnit = `דייר - ${itemName} תת חלקה - ${subunitId}`;
+      logger.error("sendOwnersToMonday", TAG, { "Failed permanently after 3 attempts": nameAndSubUnit });
+      failedOwners.push(nameAndSubUnit);
     }
   }
   return failedOwners;

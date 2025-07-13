@@ -199,6 +199,7 @@ function extractOwners(lines, subunitId) {
 
           const owner = parseOwnerLine(lines[j].items);
           if (owner["שם בעלים"] && owner["סוג הבעלות"] && owner["אחוז אחזקה בתת החלקה"]){
+            console.log("סוג בעלות לא מוכר", owner["סוג הבעלות"])
             owner["תת חלקה"] = subunitId;
             lastOwner = owner;
             owners.push(owner);

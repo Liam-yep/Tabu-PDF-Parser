@@ -235,15 +235,16 @@ export const send_failed_status = async (token, itemId, accountId) => {
 };
 
 
-export const send_technical_notes = async (
+export const send_technical_notes = async ({
   token,
   itemId,
   accountId,
   failedOwnersFromPdf = [],
   failedSubunitsFromPdf = [],
   failedOwnersFromUpload = [],
-  failedSubunitsFromUpload = []
-) => {
+  failedSubunitsFromUpload = [],
+  error_reason = null
+}) => {
   logger.debug("send_technical_notes starts", TAG);
 
   const config = accountConfig[accountId];
@@ -255,6 +256,8 @@ export const send_technical_notes = async (
   const { boardId, technical_errors_column_id } = units;
 
   const errors = [];
+  
+  if (error_reason) errors.push(error_reason);
 
   if (failedSubunitsFromPdf.length > 0) {
     errors.push("❗ שגיאות בקריאת תתי־חלקות מה-PDF:");
@@ -262,17 +265,17 @@ export const send_technical_notes = async (
   }
 
   if (failedOwnersFromPdf.length > 0) {
-    errors.push("❗ שגיאות בזיהוי בעלי זכויות מה-PDF:");
+    errors.push("❗ שגיאות בזיהוי בעלים-PDF:");
     errors.push(...failedOwnersFromPdf.map(e => `• ${e}`));
   }
 
   if (failedSubunitsFromUpload.length > 0) {
-    errors.push("❗ שגיאות בהעלאת תתי־חלקות למאנדיי:");
+    errors.push("❗ שגיאות בהעלאת תתי־חלקות:");
     errors.push(...failedSubunitsFromUpload.map(e => `• ${e}`));
   }
 
   if (failedOwnersFromUpload.length > 0) {
-    errors.push("❗ שגיאות בהעלאת בעלי זכויות למאנדיי:");
+    errors.push("❗ שגיאות בהעלאת בעלים:");
     errors.push(...failedOwnersFromUpload.map(e => `• ${e}`));
   }
 
@@ -301,11 +304,12 @@ export const send_technical_notes = async (
     `;
 
     const variables = {
-      boardId: boardId,
-      itemId: itemId.toString(),
-      columnId: technical_errors_column_id,
-      value: JSON.stringify(fullMessage)
-    };
+    boardId: boardId,
+    itemId: itemId.toString(),
+    columnId: technical_errors_column_id,
+    value: JSON.stringify({ text: fullMessage })
+  };
+
 
     logger.debug("Sending send_technical_notes", TAG, { mutation, variables });
 
