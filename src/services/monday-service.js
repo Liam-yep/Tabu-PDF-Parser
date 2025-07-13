@@ -239,13 +239,19 @@ export const send_technical_notes = async ({
   token,
   itemId,
   accountId,
-  failedOwnersFromPdf = [],
-  failedSubunitsFromPdf = [],
-  failedOwnersFromUpload = [],
-  failedSubunitsFromUpload = [],
+  processPdfFileFailedOwners = [],
+  processPdfFileFaileSubunits = [],
+  failedOwners = [],
+  failedSubunits = [],
   error_reason = null
 }) => {
-  logger.debug("send_technical_notes starts", TAG);
+  logger.debug("send_technical_notes starts", TAG, {
+    "processPdfFileFailedOwners":processPdfFileFailedOwners,
+    "processPdfFileFaileSubunits":processPdfFileFaileSubunits,
+    "failedOwners":failedOwners,
+    "failedSubunits":failedSubunits,
+    "error_reason":error_reason
+  });
 
   const config = accountConfig[accountId];
   if (!config) {
@@ -259,24 +265,24 @@ export const send_technical_notes = async ({
   
   if (error_reason) errors.push(error_reason);
 
-  if (failedSubunitsFromPdf.length > 0) {
+  if (processPdfFileFaileSubunits.length > 0) {
     errors.push("❗ שגיאות בקריאת תתי־חלקות מה-PDF:");
-    errors.push(...failedSubunitsFromPdf.map(e => `• ${e}`));
+    errors.push(...processPdfFileFaileSubunits.map(e => `• ${e}`));
   }
 
-  if (failedOwnersFromPdf.length > 0) {
+  if (processPdfFileFailedOwners.length > 0) {
     errors.push("❗ שגיאות בזיהוי בעלים-PDF:");
-    errors.push(...failedOwnersFromPdf.map(e => `• ${e}`));
+    errors.push(...processPdfFileFailedOwners.map(e => `• ${e}`));
   }
 
-  if (failedSubunitsFromUpload.length > 0) {
+  if (failedSubunits.length > 0) {
     errors.push("❗ שגיאות בהעלאת תתי־חלקות:");
-    errors.push(...failedSubunitsFromUpload.map(e => `• ${e}`));
+    errors.push(...failedSubunits.map(e => `• ${e}`));
   }
 
-  if (failedOwnersFromUpload.length > 0) {
+  if (failedOwners.length > 0) {
     errors.push("❗ שגיאות בהעלאת בעלים:");
-    errors.push(...failedOwnersFromUpload.map(e => `• ${e}`));
+    errors.push(...failedOwners.map(e => `• ${e}`));
   }
 
   if (errors.length === 0) {
