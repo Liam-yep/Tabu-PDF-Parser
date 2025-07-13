@@ -195,7 +195,7 @@ export const change_units_columns = async (token, itemId, accountId, unitNumber,
 };
 
 
-export const send_failed_status = async (token, itemId, accountId) => {
+export const send_failed_status = async (token, itemId, accountId, status) => {
   logger.debug("send_failed_status starts", TAG);
 
   const config = accountConfig[accountId];
@@ -203,7 +203,7 @@ export const send_failed_status = async (token, itemId, accountId) => {
     throw new Error(`No config found for account ${accountId}`);
   }
   const { units } = config;
-  const { trigger_column_id, boardId} = units;
+  const { failed_status_column_id, boardId} = units;
 
   try {
     const mondayClient = initMondayClient();
@@ -221,8 +221,8 @@ export const send_failed_status = async (token, itemId, accountId) => {
     const variables = {
       boardId: boardId,
       itemId: itemId.toString(), // חשוב שיהיה מחרוזת (ID ולא Int)
-      columnId: trigger_column_id,
-      value: JSON.stringify({ label: "נכשל" })
+      columnId: failed_status_column_id,
+      value: JSON.stringify({ label: status })
     };
 
     logger.debug("Sending send_failed_status", TAG, { mutation, variables });
@@ -321,6 +321,14 @@ export const send_technical_notes = async ({
 
     const response = await mondayClient.api(mutation, { variables });
     logger.info("✅ Technical notes updated successfully", TAG, response);
+
+     if (error_reason){
+      await send_failed_status(token, itemId, accountId, "נכשל")
+    }
+    else if (processPdfFileFaileSubunits.length > 0 || processPdfFileFailedOwners.length > 0 || failedSubunits.length > 0 || failedOwners.length > 0) {
+      await send_failed_status(token, itemId, accountId, "הועלה חלקית")
+    }
+    
   } catch (err) {
     logger.error("❌ Error in send_technical_notes", TAG, err);
   }

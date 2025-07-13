@@ -53,6 +53,7 @@ export async function sendOwnersToMonday(token, dfOwners, subunitIdMap, accountI
       [columnMap["תת חלקה"]]: { item_ids: [parseInt(subunitItemId)] },
       [source_column_id]: { label: "נסח טאבו" },
       [columnMap["סוג זיהוי"]]: { labels: [String(row["סוג זיהוי"]).trim()] },
+      [columnMap["סוג הבעלות"]]: { labels: [String(row["סוג הבעלות"]).trim()] },
     };
 
     let attempt = 0;

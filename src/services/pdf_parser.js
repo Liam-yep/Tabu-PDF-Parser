@@ -248,35 +248,49 @@ function extractOwners(lines, subunitId) {
 
 
 function extractSubunitData(lines, subunitId) {
-  const isMortgage = lines.some(line =>
-    line.items.some(item => item.text.includes("משכנתאות"))
-  );
+  let shared, floor, area, bank;
+  let find_subunit_data = false;
+  let find_mortgage = false;
 
   for (let i = 0; i < lines.length; i++) {
     const headerLine = lines[i];
     const headerText = headerLine.items.map(i => i.text).join(" ").trim();
 
-    if (headerText.includes("שטח") && headerText.includes('במ"ר') && i + 1 < lines.length) {
+    if (!find_subunit_data && headerText.includes("שטח") && headerText.includes('במ"ר') && i + 1 < lines.length) {
       const valueLine = lines[i + 1].items;
+      find_subunit_data = true
 
-      // 💡 תחליף פה את הערכים לפי ה-Xים הרלוונטיים מתוך ה־PDF שלך
       const xMap = {
         shared: [14, 106],     // "החלק ברכוש המשותף"
         floor: [276, 464],     // "תיאור קומה"
         area: [510, 564]       // "שטח במר"
       };
+      shared = extractTextFromXRange(valueLine, ...xMap.shared)
+      floor = extractTextFromXRange(valueLine, ...xMap.floor)
+      area = extractTextFromXRange(valueLine, ...xMap.area)
+    }
 
-      return [{
-        "תת חלקה": subunitId,
-        "החלק ברכוש המשותף": extractTextFromXRange(valueLine, ...xMap.shared),
-        "תיאור קומה": extractTextFromXRange(valueLine, ...xMap.floor),
-        "שטח במר": extractTextFromXRange(valueLine, ...xMap.area),
-        "משכנתה": isMortgage ? "קיימת" : "לא קיימת"
-      }];
+    if (!find_mortgage && headerText.includes("משכנתאות") && i + 1 < lines.length){
+      const valueLine = lines[i + 1].items;
+      if (!valueLine.some(item => item.text.includes("משכנת"))) {
+        continue;
+      }
+      find_mortgage = true
+
+      const xMap = {
+        bank: [319, 446],     // "משכנתא - בנק"
+      };
+      bank = extractTextFromXRange(valueLine, ...xMap.bank)
     }
   }
-
-  return [];
+    return [{
+      "תת חלקה": subunitId,
+      "החלק ברכוש המשותף": shared || "לא נמצא",
+      "תיאור קומה": floor || "לא נמצא",
+      "שטח במר": area || "לא נמצא",
+      "משכנתה": find_mortgage ? "קיימת" : "לא קיימת",
+      "משכנתה - בנק": bank || ""
+    }];
 }
 
 

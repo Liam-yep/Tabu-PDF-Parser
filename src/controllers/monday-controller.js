@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import logger from '../services/logger/index.js';
-import { getFileInfo, send_notification, delete_all_subunits_before, change_units_columns, send_failed_status, send_technical_notes } from '../services/monday-service.js';
+import { getFileInfo, send_notification, delete_all_subunits_before, change_units_columns, send_technical_notes } from '../services/monday-service.js';
 import { downloadFile } from '../services/file-service.js';
 import { processPdfFile } from '../services/pdf_parser.js'
 import { sendSubunitsToMonday } from '../services/monday-upload-subunits.js';
@@ -13,7 +13,7 @@ const connectionModelService = new ConnectionModelService();
 
 
 export async function sendPdf(req, res) {
-  let shortLivedToken, userId, accountId, itemId, connection, token;
+  let shortLivedToken, userId, accountId, itemId, connection, token, error_reason, filePath;
   try {
     console.log('sendPdf called');
     res.status(200).send()
@@ -34,12 +34,11 @@ export async function sendPdf(req, res) {
     const { file_url, file_name } = await getFileInfo(token, itemId, PDFColumnId);
     console.log('File URL:', file_url, 'File Name:', file_name);
 
-    const filePath = await downloadFile(file_url, file_name);
+    filePath = await downloadFile(file_url, file_name);
     if (!filePath) {
       error_reason = "Failed to download file"
       console.error(error_reason);
       await send_notification(token, userId, itemId, error_reason)
-      await send_failed_status(token, itemId, accountId)
       await send_technical_notes({token, itemId, accountId, error_reason})
       return;
     }
@@ -48,12 +47,14 @@ export async function sendPdf(req, res) {
     console.log("📥 File saved to:", filePath);
     
     const { unitNumber, blockNumber, subunitData, ownersData, processPdfFileFailedOwners, processPdfFileFaileSubunits } = await processPdfFile(filePath);
-    console.log("PDF parsed successfully");
-    try {
-      await fs.unlink(filePath);
-    } catch (err) {
-      console.warn(`Failed to delete file: ${err}`);
+    if (!unitNumber){
+      error_reason = "Invalid file. Please upload a valid PDF Tabu document."
+      console.error(error_reason);
+      await send_notification(token, userId, itemId, error_reason)
+      await send_technical_notes({token, itemId, accountId, error_reason})
+      return;
     }
+    console.log("PDF parsed successfully");
     await delete_all_subunits_before(token, itemId, accountId)
     await change_units_columns(token, itemId, accountId, unitNumber, blockNumber)
     console.log("Sending subunits to Monday...");
@@ -74,12 +75,19 @@ export async function sendPdf(req, res) {
     return
   } catch (err) {
     console.error("sendPdf", TAG, {"error":err});
-    const error_reason = "internal server error - Tabu PDF Parser"
+    error_reason = "internal server error - Tabu PDF Parser"
     await send_notification(token, userId, itemId, error_reason)
     console.log("accountIdaccountIdaccountIdaccountId",accountId)
-    await send_failed_status(token, itemId, accountId)
     await send_technical_notes({token, itemId, accountId, error_reason})
     return 
+  } finally {
+    if (filePath) {
+      try {
+        await fs.unlink(filePath);
+      } catch (err) {
+        console.warn(`Failed to delete file: ${err}`);
+      }
+    }
   }
 }
 

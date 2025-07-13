@@ -50,7 +50,8 @@ const mondayClient = initMondayClient();
       [columnMap["שטח במר"]]: parseFloat(row["שטח במר"]),
       [columnMap["משכנתה"]]: { label: row["משכנתה"] },
       [columnMap["קשר לחלקה"]]: { item_ids: [parseInt(parentItemId)] },
-      [source_column_id]: { label: "נסח טאבו" }
+      [source_column_id]: { label: "נסח טאבו" },
+      [columnMap["משכנתה - בנק"]]: row["משכנתה - בנק"],
     };
 
     let attempt = 0;
