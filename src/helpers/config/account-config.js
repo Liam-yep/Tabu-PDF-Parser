@@ -9,7 +9,13 @@ export const accountConfig = {
             "שטח במר": "numeric_mks1ka3t",
             "משכנתה": "color_mkr56hf9",
             "קשר לחלקה": "board_relation_mkq7xz0x",
-            "משכנתה - בנק": "text_mkstt6sg"
+            "משכנתה - בנק": "text_mkstt6sg",
+            "חנייה מוצמדת במר": "numeric_mkr6ra77",
+            "מספר חניות מוצמדות": "numeric_mkswadvz",
+            "גג מוצמד במר": "numeric_mkrqchbv",
+            "מספר גגות מוצמדים": "numeric_mksw7zf2",
+            "מחסן מוצמד במר": "numeric_mkswjsyz",
+            "מספר מחסנים מוצמדים": "numeric_mksw5m09",
             },
             source_column_id: "color_mkskq78k"
         },
@@ -45,7 +51,13 @@ export const accountConfig = {
             "שטח במר": "numeric_mks97j9f",
             "משכנתה": "color_mkskvqnx",
             "קשר לחלקה": "board_relation_mkrrdeat",
-            "משכנתה - בנק": "text_mkstjpqh"
+            "משכנתה - בנק": "text_mkstjpqh",
+            "חנייה מוצמדת במר": "numeric_mkstd5s3",
+            "מספר חניות מוצמדות": "numeric_mksw75hq",
+            "גג מוצמד במר": "numeric_mkstpt3g",
+            "מספר גגות מוצמדים": "numeric_mksw80tn",
+            "מחסן מוצמד במר": "numeric_mkswp37d",
+            "מספר מחסנים מוצמדים": "numeric_mkswax82",
             },
             source_column_id: "color_mksmmvwd"
         },

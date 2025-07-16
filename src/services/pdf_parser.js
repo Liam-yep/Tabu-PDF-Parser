@@ -73,7 +73,10 @@ function cleanLinesFromHeaderBlock(lines) {
     const textLine = lineObj.items.map(i => i.text).join(" ").trim();
 
     if (/^\d+\s+מתוך\s+\d+\s+עמוד$/.test(textLine)) {
-      i += 9; // דלג על 10 שורות (כולל הנוכחית)
+      const nextLine = lines[i + 9];
+      const nextText = nextLine?.items.map(it => it.text).join(" ") || "";
+      const hasExtraHeader = nextText.includes("משותף עם חלקות / גושים");
+      i += hasExtraHeader ? 10 : 9;
       continue;
     }
 
@@ -196,7 +199,6 @@ function extractOwners(lines, subunitId) {
 
         // תנאי עצירה (הערות, תת חלקה, חכירות וכו׳)
         if (!validOwnerPattern.test(currText)) {
-
           const owner = parseOwnerLine(lines[j].items);
           if (owner["שם בעלים"] && owner["סוג הבעלות"] && owner["אחוז אחזקה בתת החלקה"]){
             console.log("סוג בעלות לא מוכר", owner["סוג הבעלות"])
@@ -247,10 +249,61 @@ function extractOwners(lines, subunitId) {
 }
 
 
+function extractAttachments(lines, startIndex) {
+  const xMap = {
+    area_of_attachment: [0, 106],     // "שטח במ"ר(הצמדות)"
+    attachment_description: [182, 407],     // "תיאור הצמדה"
+  };
+  const result = {}
+  let index = startIndex;
+  const validKeywords = ["גג", "חניה", "מחסן"];
+  const valueLine = lines[index + 1]?.items;
+
+  if (!valueLine || !valueLine.some(item => item.text.includes("תיאור הצמדה"))) {
+    return null;
+  }
+
+  while (true) {
+    index +=1
+    const valueLine = lines[index + 1]?.items;
+    const currText = valueLine.map(i => i.text).join(" ");
+
+    if (
+      currText.includes("הערות") ||
+      currText.includes("תת חלקה") ||
+      currText.includes("משכנתאות") ||
+      currText.includes("חכירות") ||
+      currText.includes("זיקות הנאה")
+    ) {
+      break;  // עצירה: התחלף פרק במסמך
+    }
+    
+    const area_of_attachment = extractTextFromXRange(valueLine, ...xMap.area_of_attachment)
+    const attachment_description = extractTextFromXRange(valueLine, ...xMap.attachment_description).trim()
+
+    const float_area_of_attachment = parseFloat(area_of_attachment?.replace(",", ".") || "0");
+    if (!attachment_description || isNaN(float_area_of_attachment)) break;
+
+    const matchedKeyword = validKeywords.find(keyword => attachment_description.includes(keyword));
+    if (!matchedKeyword) break;
+
+    if (!result[matchedKeyword]) {
+      result[matchedKeyword] = { count: 1, total_area: float_area_of_attachment };
+    } else {
+      result[matchedKeyword].count += 1;
+      result[matchedKeyword].total_area += float_area_of_attachment;
+    }
+  }
+  return Object.keys(result).length ? result : null;
+
+}
+
+
 function extractSubunitData(lines, subunitId) {
   let shared, floor, area, bank;
   let find_subunit_data = false;
   let find_mortgage = false;
+  let attachments = false
 
   for (let i = 0; i < lines.length; i++) {
     const headerLine = lines[i];
@@ -282,15 +335,21 @@ function extractSubunitData(lines, subunitId) {
       };
       bank = extractTextFromXRange(valueLine, ...xMap.bank)
     }
+
+    if (headerText.includes("הצמדות")){
+      attachments = extractAttachments(lines, i);
+    }
   }
-    return [{
-      "תת חלקה": subunitId,
-      "החלק ברכוש המשותף": shared || "לא נמצא",
-      "תיאור קומה": floor || "לא נמצא",
-      "שטח במר": area || "לא נמצא",
-      "משכנתה": find_mortgage ? "קיימת" : "לא קיימת",
-      "משכנתה - בנק": bank || ""
-    }];
+  return [{
+    "תת חלקה": subunitId,
+    "החלק ברכוש המשותף": shared || "לא נמצא",
+    "תיאור קומה": floor || "לא נמצא",
+    "שטח במר": area || "לא נמצא",
+    "משכנתה": find_mortgage ? "קיימת" : "לא קיימת",
+    "משכנתה - בנק": bank || "",
+    "הצמדות - קיים": attachments ? true : false,
+    "הצמדות - פירוט": attachments,
+  }];
 }
 
 

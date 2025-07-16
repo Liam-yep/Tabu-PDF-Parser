@@ -23,6 +23,40 @@ function parsePercentage(value) {
   }
 }
 
+function applyAttachmentsToColumns(columnValues, columnMap, attachments) {
+  if (!attachments || typeof attachments !== 'object') return columnValues;
+  const attachmentColumnKeys = {
+    "חניה": {
+      countKey: "מספר חניות מוצמדות",
+      areaKey: "חנייה מוצמדת במר",
+    },
+    "גג": {
+      countKey: "מספר גגות מוצמדים",
+      areaKey: "גג מוצמד במר",
+    },
+    "מחסן": {
+      countKey: "מספר מחסנים מוצמדים",
+      areaKey: "מחסן מוצמד במר",
+    },
+  };
+
+  for (const [type, info] of Object.entries(attachments)) {
+    const mapping = attachmentColumnKeys[type];
+    if (!mapping) continue;
+
+    const { count, total_area } = info;
+
+    const countColId = columnMap[mapping.countKey];
+    const areaColId = columnMap[mapping.areaKey];
+
+    if (countColId) columnValues[countColId] = count;
+    if (areaColId) columnValues[areaColId] = total_area;
+  }
+
+  return columnValues;
+}
+
+
 export async function sendSubunitsToMonday(token, dfUnits, parentItemId, unitNumber, accountId) {
 const mondayClient = initMondayClient();
   mondayClient.setApiVersion('2024-07');
@@ -44,7 +78,7 @@ const mondayClient = initMondayClient();
     const subunitId = String(row["תת חלקה"]).trim();
     const itemName = `${unitNumber} - ${subunitId}`;
 
-    const columnValues = {
+    let columnValues = {
       [columnMap["החלק ברכוש המשותף"]]: parsePercentage(row["החלק ברכוש המשותף"]),
       [columnMap["תיאור קומה"]]: { label: row["תיאור קומה"] },
       [columnMap["שטח במר"]]: parseFloat(row["שטח במר"]),
@@ -54,6 +88,7 @@ const mondayClient = initMondayClient();
       [columnMap["משכנתה - בנק"]]: row["משכנתה - בנק"],
     };
 
+    columnValues = applyAttachmentsToColumns(columnValues, columnMap, row['הצמדות - פירוט'])
     let attempt = 0;
     let success = false;
 
