@@ -249,6 +249,37 @@ function extractOwners(lines, subunitId) {
 }
 
 
+function extractNotes(lines, startIndex) {
+  const xMap = {
+    type: [446, 564],     // הערך שמתחיל פסקה של הערות
+  };
+  const notes = [];
+  let index = startIndex+1;
+
+  while (index < lines.length) {
+    const nextLine = lines[index];
+    // const nextText = nextLine.items.map(i => i.text).join(" ").trim();
+    const nextText = nextLine.items
+    .slice()
+    .sort((a, b) => b.xLeft - a.xLeft)  // מיין מימין לשמאל
+    .map(i => i.text)
+    .join(" ")
+    .trim();
+
+
+    if (nextText.includes("תת חלקה") || nextText.includes("משכנתאות") || nextText.includes("חכירות") || nextText.includes("הצמדות") || nextText.includes("זיקות הנאה")) {
+      break; // עצירה: התחלף פרק במסמך
+    }
+    
+    notes.push(nextText);
+    index++;
+    }
+  const str = notes.join("\n").trim();
+  return str;
+}
+
+
+
 function extractAttachments(lines, startIndex) {
   const xMap = {
     area_of_attachment: [0, 106],     // "שטח במ"ר(הצמדות)"
@@ -304,6 +335,7 @@ function extractSubunitData(lines, subunitId) {
   let find_subunit_data = false;
   let find_mortgage = false;
   let attachments = false
+  let notes = "";
 
   for (let i = 0; i < lines.length; i++) {
     const headerLine = lines[i];
@@ -339,6 +371,20 @@ function extractSubunitData(lines, subunitId) {
     if (headerText.includes("הצמדות")){
       attachments = extractAttachments(lines, i);
     }
+
+    if (headerText.includes("הערות")) {
+      const notesTitleItem = headerLine.items.find(
+        item =>
+          item.text.includes("הערות") &&
+          item.xLeft >= 511.4 &&
+          item.xRight <= 535.1
+      );
+      if (notesTitleItem) {
+        notes = extractNotes(lines, i);
+      }
+    }
+
+
   }
   return [{
     "תת חלקה": subunitId,
@@ -349,6 +395,7 @@ function extractSubunitData(lines, subunitId) {
     "משכנתה - בנק": bank || "",
     "הצמדות - קיים": attachments ? true : false,
     "הצמדות - פירוט": attachments,
+    "פירוט הערות": notes || "",
   }];
 }
 

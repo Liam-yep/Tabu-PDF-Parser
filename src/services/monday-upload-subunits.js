@@ -86,6 +86,7 @@ const mondayClient = initMondayClient();
       [columnMap["קשר לחלקה"]]: { item_ids: [parseInt(parentItemId)] },
       [source_column_id]: { label: "נסח טאבו" },
       [columnMap["משכנתה - בנק"]]: row["משכנתה - בנק"],
+      [columnMap["פירוט הערות"]]: row["פירוט הערות"],
     };
 
     columnValues = applyAttachmentsToColumns(columnValues, columnMap, row['הצמדות - פירוט'])

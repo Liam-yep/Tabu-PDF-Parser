@@ -16,6 +16,7 @@ export const accountConfig = {
             "מספר גגות מוצמדים": "numeric_mksw7zf2",
             "מחסן מוצמד במר": "numeric_mkswjsyz",
             "מספר מחסנים מוצמדים": "numeric_mksw5m09",
+            "פירוט הערות": "long_text_mkst6sbc",
             },
             source_column_id: "color_mkskq78k"
         },
@@ -58,6 +59,7 @@ export const accountConfig = {
             "מספר גגות מוצמדים": "numeric_mksw80tn",
             "מחסן מוצמד במר": "numeric_mkswp37d",
             "מספר מחסנים מוצמדים": "numeric_mkswax82",
+            "פירוט הערות": "long_text_mkstn2pw",
             },
             source_column_id: "color_mksmmvwd"
         },
