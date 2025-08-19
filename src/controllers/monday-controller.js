@@ -6,29 +6,22 @@ import { processPdfFile } from '../services/pdf_parser.js'
 import { sendSubunitsToMonday } from '../services/monday-upload-subunits.js';
 import { sendOwnersToMonday } from '../services/monday-upload-owners.js';
 import { ConnectionModelService } from '../services/model-services/connection-model-service.js';
-
+import { enqueueByAccount } from '../services/accountQueue.js';
 
 const TAG = 'monday-controller';
 const connectionModelService = new ConnectionModelService();
 
 
-export async function sendPdf(req, res) {
-  let shortLivedToken, userId, accountId, itemId, connection, token, error_reason, filePath;
-  try {
-    console.log('sendPdf called');
-    res.status(200).send()
-    
-    shortLivedToken = req.session.shortLivedToken;
-    userId = req.session.userId;
-    accountId = req.session.accountId;
-    itemId = req.body.payload.inputFields.itemId;
-
+export async function sendPdf(userId, accountId, itemId, inputFields) {
+  console.log('sendPdf called');
+  let connection, token, filePath, error_reason;
+  
+  try {  
     console.log("accountId",accountId)
     connection = await connectionModelService.getConnectionByUserId(accountId);
     logger.debug("connection from connectionModelService", TAG, {"connection":connection})
     token = connection?.mondayToken
 
-    const { inputFields } = req.body.payload;
     const { PDFColumnId } = inputFields;
     console.log("PDFColumnId",PDFColumnId, "itemId", itemId);
     const { file_url, file_name } = await getFileInfo(token, itemId, PDFColumnId);
@@ -71,14 +64,15 @@ export async function sendPdf(req, res) {
       logger.warn("sendPdf", TAG, `Some owners failed to upload: ${failedOwners.join(', ')}`);
     }
     await send_technical_notes({token, itemId, accountId, processPdfFileFailedOwners, processPdfFileFaileSubunits, failedOwners, failedSubunits});
-    console.log("returning 200");
+    console.log("✅ Finished sendPdf");
     return
   } catch (err) {
     console.error("sendPdf", TAG, {"error":err});
     error_reason = "internal server error - Tabu PDF Parser"
-    await send_notification(token, userId, itemId, error_reason)
-    console.log("accountIdaccountIdaccountIdaccountId",accountId)
-    await send_technical_notes({token, itemId, accountId, error_reason})
+    if (token) {
+      await send_notification(token, userId, itemId, error_reason)
+      await send_technical_notes({token, itemId, accountId, error_reason})
+    }
     return 
   } finally {
     if (filePath) {
@@ -91,4 +85,18 @@ export async function sendPdf(req, res) {
   }
 }
 
+export async function enqueue_and_run(req, res) {
+  console.log('enqueue_and_run called');
+  let shortLivedToken, userId, accountId, itemId;
 
+  shortLivedToken = req.session.shortLivedToken;
+  userId = req.session.userId;
+  accountId = req.session.accountId;
+  itemId = req.body.payload.inputFields.itemId;
+  const { inputFields } = req.body.payload;
+
+  res.status(200).send()
+  return enqueueByAccount(accountId, async () => {
+    await sendPdf(userId, accountId, itemId, inputFields);
+  });
+}
