@@ -131,6 +131,9 @@ const mondayClient = initMondayClient();
 
     if (!success) {
       logger.error("sendSubunitsToMonday", TAG, {"Failed permanently after 3 attempts":itemName});
+      if (response?.errors?.[0]?.extensions?.status_code === 500) {
+        itemName = `שגיאה פנימית ב Monday. אפשר לנסות שוב מאוחר יותר. ${itemName}`;
+      }
       failedSubunits.push(itemName);
     }
   }

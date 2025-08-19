@@ -94,8 +94,11 @@ export async function sendOwnersToMonday(token, dfOwners, subunitIdMap, accountI
     }
 
     if (!success) {
-      const nameAndSubUnit = `דייר - ${itemName} תת חלקה - ${subunitId}`;
+      let nameAndSubUnit = `דייר - ${itemName} תת חלקה - ${subunitId}`;
       logger.error("sendOwnersToMonday", TAG, { "Failed permanently after 3 attempts": nameAndSubUnit });
+      if (response?.errors?.[0]?.extensions?.status_code === 500) {
+        nameAndSubUnit = `שגיאה פנימית ב Monday. אפשר לנסות שוב מאוחר יותר. ${nameAndSubUnit}`;
+      }
       failedOwners.push(nameAndSubUnit);
     }
   }
