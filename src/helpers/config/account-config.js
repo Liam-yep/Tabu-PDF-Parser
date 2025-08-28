@@ -5,7 +5,7 @@ export const accountConfig = {
             boardId: 1923677090,
             columnMap: {    
             "החלק ברכוש המשותף": "numeric_mkq62m7k",
-            "תיאור קומה": "color_mkq6ytpj",
+            "תיאור קומה": "dropdown_mkv6bxn2",
             "שטח במר": "numeric_mks1ka3t",
             "משכנתה": "color_mkr56hf9",
             "קשר לחלקה": "board_relation_mkq7xz0x",
