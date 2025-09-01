@@ -98,7 +98,7 @@ function splitIntoSubUnits(lines) {
 
   for (const lineObj of lines) {
     const textLine = lineObj.items.map(i => i.text).join(" ").trim();
-
+    
     // בדיקה אם זו התחלה של תת-חלקה
     if (/^\d+\s+תת\s+חלקה$/.test(textLine)) {
       if (currentUnit.length > 0) {
@@ -184,7 +184,8 @@ function parseOwnerLine(lineItems) {
 function extractOwners(lines, subunitId) {
   const owners = [];
   let lastOwner = null;
-  
+  let checked_continued_line = false;
+
   for (let i = 0; i < lines.length; i++) {
     const lineText = lines[i].items.map(i => i.text).join(" ");
 
@@ -218,17 +219,25 @@ function extractOwners(lines, subunitId) {
             break;
           }
 
+          else if (checked_continued_line) {
+            break
+          }
             // אחרת, שורת המשך — נצרף אותה לשם של הבעלים האחרון
           else if (lastOwner && owner["שם בעלים"]) {
             lastOwner["שם בעלים"] += " " + removeParentheses(owner["שם בעלים"]);
             
-          } else {
+          } else if (lastOwner) {
+            checked_continued_line = true; // נמנע מלכוד שורות המשך נוספות
+          }
+
+          else {
             console.warn(`⚠️ בעיה עם תת חלקה ${subunitId} בזמן חילוץ בעלים`);
-            return null;
+            return [];
           }
 
         } else {
           const owner = parseOwnerLine(lines[j].items); // ✅ שימוש במבנה החדש
+          checked_continued_line = false; // איפוס הדגל
           if (owner) {
             const hasValidName = !!owner["שם בעלים"];
             if (!hasValidName) {
@@ -430,24 +439,24 @@ function parseSubdivisions(subdivisionBlocks) {
   const allSubunits = [];
   const allOwners = [];
   const failedOwners = [];
-  const faileSubunits = [];
+  const failedSubunits = [];
 
   for (const block of subdivisionBlocks) {
     const [subunitData, ownersData, subunitId] = parseSubunitBlock(block);
     allSubunits.push(...subunitData);
     allOwners.push(...ownersData);
 
-    if (ownersData.length === 0) {
-    error_text = `⚠️ שגיאה במידע על בעלים של תת חלקה ${subunitId}`
-    failedOwners.push(...error_text)
+    if (!ownersData || ownersData.length === 0) {
+      const error_text = `⚠️ שגיאה במידע על בעלים של תת חלקה ${subunitId}`
+      failedOwners.push(error_text);
     }
 
-    if (subunitData.length === 0) {
-    error_text = `⚠️ שגיאה במידע על תת חלקה ${subunitId}`
-    faileSubunits.push(...error_text)
+    if (!subunitData || subunitData.length === 0) {
+      const error_text = `⚠️ שגיאה במידע על תת חלקה ${subunitId}`
+      failedSubunits.push(error_text)
     }
   }
-  return [allSubunits, allOwners, failedOwners, faileSubunits];
+  return [allSubunits, allOwners, failedOwners, failedSubunits];
 }
 
 
@@ -456,9 +465,9 @@ export async function processPdfFile(filePath) {
     const { subUnits, unitNumber, blockNumber } = await extractTextBlocks(filePath);
     console.log("🔢 מספר יחידה:", unitNumber, "מספר גוש", blockNumber);
     console.log("📦 כמות תתי־יחידות:", subUnits.length);
-    const [subunitData, ownersData, failedOwners, faileSubunits] = parseSubdivisions(subUnits);
-
-    return { unitNumber, blockNumber, subunitData, ownersData, failedOwners, faileSubunits};
+    const [subunitData, ownersData, failedOwners, failedSubunits] = parseSubdivisions(subUnits);
+    
+    return { unitNumber, blockNumber, subunitData, ownersData, failedOwners, failedSubunits};
   } catch (error) {
     console.error("❌ שגיאה בעיבוד קובץ PDF:", error);
     throw error;

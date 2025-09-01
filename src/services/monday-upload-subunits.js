@@ -76,11 +76,11 @@ const mondayClient = initMondayClient();
 
   for (const row of dfUnits) {
     const subunitId = String(row["תת חלקה"]).trim();
-    const itemName = `${unitNumber} - ${subunitId}`;
+    let itemName = `${unitNumber} - ${subunitId}`;
 
     let columnValues = {
       [columnMap["החלק ברכוש המשותף"]]: parsePercentage(row["החלק ברכוש המשותף"]),
-      [columnMap["תיאור קומה"]]: { label: row["תיאור קומה"] },
+      [columnMap["תיאור קומה"]]: buildColumnValue(columnMap["תיאור קומה"], row["תיאור קומה"]),
       [columnMap["שטח במר"]]: parseFloat(row["שטח במר"]),
       [columnMap["משכנתה"]]: { label: row["משכנתה"] },
       [columnMap["קשר לחלקה"]]: { item_ids: [parseInt(parentItemId)] },
@@ -139,4 +139,17 @@ const mondayClient = initMondayClient();
   }
 
   return { subunitIdMap, failedSubunits };
+}
+
+
+function buildColumnValue(columnId, rawValue) {
+  if (!rawValue) return null;
+
+  if (columnId.startsWith("dropdown_")) {
+    return { labels: [String(rawValue)] };
+  }
+  if (columnId.startsWith("color_")) {
+    return { label: String(rawValue) };
+  }
+  return String(rawValue); // fallback לטקסט/מספר/אחר
 }
