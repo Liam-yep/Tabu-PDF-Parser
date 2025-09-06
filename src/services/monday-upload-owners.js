@@ -53,16 +53,22 @@ export async function sendOwnersToMonday(token, dfOwners, subunitIdMap, accountI
       [columnMap["תת חלקה"]]: { item_ids: [parseInt(subunitItemId)] },
       [source_column_id]: { label: "נסח טאבו" },
       [columnMap["סוג זיהוי"]]: { labels: [String(row["סוג זיהוי"]).trim()] },
-      [columnMap["סוג הבעלות"]]: { labels: [String(row["סוג הבעלות"]).trim()] },
+      [columnMap["פירוט הבעלות"]]: { labels: [String(row["פירוט הבעלות"]).trim()] },
     };
+
+    if (columnMap["סוג בעלות"]) {
+      columnValues[columnMap["סוג בעלות"]] = { label: String(row["סוג בעלות"]).trim() }; // Status
+    }
+
 
     let attempt = 0;
     let success = false;
+    let response;
 
     while (attempt < 3 && !success) {
       try {
         attempt++;
-        const response = await mondayClient.api(`
+        const mutation = `
           mutation {
             create_item (
               board_id: ${boardId},
@@ -73,7 +79,8 @@ export async function sendOwnersToMonday(token, dfOwners, subunitIdMap, accountI
               id
             }
           }
-        `);
+        `
+        response = await mondayClient.api(mutation);
         const itemId = response?.data?.create_item?.id;
         if (itemId) {
           success = true;

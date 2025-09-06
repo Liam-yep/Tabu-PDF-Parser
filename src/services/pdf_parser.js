@@ -142,7 +142,9 @@ function extractTextFromXRange(lineItems, minX, maxX) {
 }
 
 
-function parseOwnerLine(lineItems) {
+function parseOwnerLine(lineItems, callerFunction="extractOwners") {
+  const ownershipLabel = callerFunction === "extractOwners" ? "בעלות" : "חכירות";
+
   const owner = {
     "תת חלקה": null,
     "שם בעלים": null,
@@ -150,7 +152,8 @@ function parseOwnerLine(lineItems) {
     "אחוז אחזקה בתת החלקה": null,
     "סוג זיהוי": null,
     "מספר רישום בעלות": null, // הערך הכי שמאלי תחת בעלויות לדוגמה 6924/1990/2
-    "סוג הבעלות": null // הערך הכי ימני לדוגמה מכר או צוואה
+    "פירוט הבעלות": null, // הערך הכי ימני לדוגמה מכר או צוואה
+    "סוג בעלות": ownershipLabel // "לבחירת הלייבל במאנדיי: "בעלות" / "חכירות"
   };
 
   const xMap = {
@@ -159,7 +162,7 @@ function parseOwnerLine(lineItems) {
     id:    [167, 244],     // ת"ז
     typeOfId: [244, 319],  // סוג זיהוי
     name:  [319, 446],      // שם בעלים
-    transferType:  [446, 564],  // סוג הבעלות
+    transferType:  [446, 564],  // פירוט הבעלות
   };
 
   const name  = extractTextFromXRange(lineItems, ...xMap.name);
@@ -174,14 +177,89 @@ function parseOwnerLine(lineItems) {
   owner["אחוז אחזקה בתת החלקה"] = (share?.trim() === "בשלמות") ? "100.0" : share?.trim() || null;
   owner["סוג זיהוי"] = typeOfId?.trim() || null;
   owner["מספר רישום בעלות"] = ownershipRegistrationNumber?.trim() || null;
-  owner["סוג הבעלות"] = transferType?.trim() || null;
+  owner["פירוט הבעלות"] = transferType?.trim() || null;
 
 
   return owner;
 }
 
 
+function extractLeases(lines, subunitId) {
+  const lessees = [];
+  let lastLessee = null;
+  let checked_continued_line = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const t = lines[i].items.map(it => it.text).join(" ").trim();
+    if (t.includes("חכירות")) {
+      let j = i + 1;
+
+      while (j < lines.length) {
+        const currLineObj = lines[j];
+        const currText = currLineObj.items.map(it => it.text).join(" ").trim();
+
+        const validOwnerPattern = /(ירושה על פי הסכם|ירושה|ללא תמורה|מכר לפי צו בית משפט|מכר ללא תמורה|מכר|שנוי שם|תיקון טעות סופר|צוואה על פי הסכם|צוואה|רישום בית משותף|עודף|עדכון פרטי זיהוי|צוואה - יורש אחר יורש|שכירות|ת.ז|דרכון)/;
+
+        if (!validOwnerPattern.test(currText)) {
+          const lessee = parseOwnerLine(currLineObj.items, "extractLeases");
+          if (lessee["שם בעלים"] && lessee["פירוט הבעלות"] && lessee["אחוז אחזקה בתת החלקה"]){
+            console.log("סוג בעלות לא מוכר", lessee["פירוט הבעלות"])
+            lessee["תת חלקה"] = subunitId;
+            lastLessee = lessee;
+            lessees.push(lessee);
+          }
+
+          else if (
+            currText.includes("הערות") ||
+            currText.includes("תת חלקה") ||
+            currText.includes("משכנתאות") ||
+            currText.includes("הצמדות") ||
+            currText.includes("זיקות הנאה") ||
+            currText.includes("בעלויות") ||
+            currText.includes("רמה") ||
+            currText.includes("חלק בנכס")
+          ) { break;}
+
+          else if (checked_continued_line) {
+            break
+          } 
+            // אחרת, שורת המשך — נצרף אותה לשם של הבעלים האחרון
+          else if (lastLessee && lessee["שם בעלים"]) {
+            lastLessee["שם בעלים"] += " " + removeParentheses(lessee["שם בעלים"]);
+          } else if (lastLessee) {
+            checked_continued_line = true; // נמנע מלכוד שורות המשך נוספות
+          }
+          else {
+            console.warn(`⚠️ בעיה עם תת חלקה ${subunitId} בזמן חילוץ חכירות`);
+            return [];
+          }
+
+        } else {
+          const lease = parseOwnerLine(currLineObj.items, "extractLeases");
+          checked_continued_line = false; // איפוס הדגל
+          if (lease) {
+            const hasValidName = !!lease["שם בעלים"];
+            if (!hasValidName) {
+              console.warn("⚠️ שורת בעלים לא תקינה – חסר שם");
+              return null;
+            }
+            lease["תת חלקה"] = subunitId;
+            lastLessee = lease;
+            lessees.push(lease);
+          }
+        }
+        j++;
+      }
+    }
+  }
+
+  return lessees;
+}
+
+
 function extractOwners(lines, subunitId) {
+  const leasesData = extractLeases(lines, subunitId);
+  
   const owners = [];
   let lastOwner = null;
   let checked_continued_line = false;
@@ -196,18 +274,17 @@ function extractOwners(lines, subunitId) {
         const currLineObj = lines[j];
         const currText = currLineObj.items.map(i => i.text).join(" ").trim();
 
-        const validOwnerPattern = /(ירושה על פי הסכם|ירושה|ללא תמורה|מכר לפי צו בית משפט|מכר ללא תמורה|מכר|שנוי שם|תיקון טעות סופר|צוואה על פי הסכם|צוואה|רישום בית משותף|עודף|עדכון פרטי זיהוי|צוואה - יורש אחר יורש)/;
+        const validOwnerPattern = /(ירושה על פי הסכם|ירושה|ללא תמורה|מכר לפי צו בית משפט|מכר ללא תמורה|מכר|שנוי שם|תיקון טעות סופר|צוואה על פי הסכם|צוואה|רישום בית משותף|עודף|עדכון פרטי זיהוי|צוואה - יורש אחר יורש|שכירות)/;
 
         // תנאי עצירה (הערות, תת חלקה, חכירות וכו׳)
         if (!validOwnerPattern.test(currText)) {
           const owner = parseOwnerLine(lines[j].items);
-          if (owner["שם בעלים"] && owner["סוג הבעלות"] && owner["אחוז אחזקה בתת החלקה"]){
-            console.log("סוג בעלות לא מוכר", owner["סוג הבעלות"])
+          if (owner["שם בעלים"] && owner["פירוט הבעלות"] && owner["אחוז אחזקה בתת החלקה"]){
+            console.log("סוג בעלות לא מוכר", owner["פירוט הבעלות"])
             owner["תת חלקה"] = subunitId;
             lastOwner = owner;
             owners.push(owner);
           }
-
           else if (
             currText.includes("הערות") ||
             currText.includes("תת חלקה") ||
@@ -253,6 +330,7 @@ function extractOwners(lines, subunitId) {
       }
     }
   }
+  owners.push(...leasesData);
 
   return owners;
 }
@@ -466,7 +544,6 @@ export async function processPdfFile(filePath) {
     console.log("🔢 מספר יחידה:", unitNumber, "מספר גוש", blockNumber);
     console.log("📦 כמות תתי־יחידות:", subUnits.length);
     const [subunitData, ownersData, failedOwners, failedSubunits] = parseSubdivisions(subUnits);
-    
     return { unitNumber, blockNumber, subunitData, ownersData, failedOwners, failedSubunits};
   } catch (error) {
     console.error("❌ שגיאה בעיבוד קובץ PDF:", error);

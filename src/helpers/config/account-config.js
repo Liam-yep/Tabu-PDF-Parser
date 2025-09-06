@@ -27,7 +27,8 @@ export const accountConfig = {
                 "אחוז אחזקה בתת החלקה": "numeric_mkr4ytb2",
                 "תת חלקה": "board_relation_mkr4hh21",
                 "סוג זיהוי": "dropdown_mksk4a30",
-                "סוג הבעלות": "dropdown_mkstc39n"
+                "פירוט הבעלות": "dropdown_mkstc39n",
+                "סוג בעלות": "color_mkv8g8k"
             },
             source_column_id: "color_mksfnhrz"
         },
@@ -70,7 +71,7 @@ export const accountConfig = {
                 "אחוז אחזקה בתת החלקה": "numeric_mkrvmj4s",
                 "תת חלקה": "board_relation_mkrrs48y",
                 "סוג זיהוי": "dropdown_mksmatqm",
-                "סוג הבעלות": "dropdown_mkstw782"
+                "פירוט הבעלות": "dropdown_mkstw782"
             },
             source_column_id: "color_mksm1nm5"
         },
