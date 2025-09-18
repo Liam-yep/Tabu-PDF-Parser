@@ -198,18 +198,12 @@ function extractLeases(lines, subunitId) {
         const currLineObj = lines[j];
         const currText = currLineObj.items.map(it => it.text).join(" ").trim();
 
-        const validOwnerPattern = /(ירושה על פי הסכם|ירושה|ללא תמורה|מכר לפי צו בית משפט|מכר ללא תמורה|מכר|שנוי שם|תיקון טעות סופר|צוואה על פי הסכם|צוואה|רישום בית משותף|עודף|עדכון פרטי זיהוי|צוואה - יורש אחר יורש|שכירות|ת.ז|דרכון)/;
+        const validOwnerPattern = /(ירושה על פי הסכם|ירושה|ללא תמורה|מכר לפי צו בית משפט|מכר ללא תמורה|מכר|שנוי שם|תיקון טעות סופר|צוואה על פי הסכם|צוואה|רישום בית משותף|עודף|עדכון פרטי זיהוי|צוואה - יורש אחר יורש|ת.ז|דרכון|העברת שכירות|שכירות)/;
 
         if (!validOwnerPattern.test(currText)) {
+          
           const lessee = parseOwnerLine(currLineObj.items, "extractLeases");
-          if (lessee["שם בעלים"] && lessee["פירוט הבעלות"] && lessee["אחוז אחזקה בתת החלקה"]){
-            console.log("סוג בעלות לא מוכר", lessee["פירוט הבעלות"])
-            lessee["תת חלקה"] = subunitId;
-            lastLessee = lessee;
-            lessees.push(lessee);
-          }
-
-          else if (
+          if (
             currText.includes("הערות") ||
             currText.includes("תת חלקה") ||
             currText.includes("משכנתאות") ||
@@ -217,8 +211,17 @@ function extractLeases(lines, subunitId) {
             currText.includes("זיקות הנאה") ||
             currText.includes("בעלויות") ||
             currText.includes("רמה") ||
-            currText.includes("חלק בנכס")
+            currText.includes("חלק בנכס") ||
+            currText.includes("תאריך") ||
+            currText.includes("נרשמה חכירה מהוונת")
           ) { break;}
+
+          else if (lessee["שם בעלים"] && lessee["פירוט הבעלות"] && lessee["אחוז אחזקה בתת החלקה"]){
+            console.log("סוג בעלות לא מוכר", lessee["פירוט הבעלות"])
+            lessee["תת חלקה"] = subunitId;
+            lastLessee = lessee;
+            lessees.push(lessee);
+          }
 
           else if (checked_continued_line) {
             break
