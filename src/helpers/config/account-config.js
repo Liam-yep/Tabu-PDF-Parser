@@ -36,7 +36,7 @@ export const accountConfig = {
             boardId: 1923674628,
             connect_to_subunits_column_id : "board_relation_mkq6pa0w", // חיבור לתתי חלקות
             source_column_id : "color_mkske7b0", // עמודת מקור
-            failed_status_column_id: "color_mkstyr25", // טריגר נסח טאבו
+            failed_status_column_id: "color_mkstyr25", // טכני(אם זה נכשל או עלה חלקית)
             block_column_id: "text_mkrj72wg", // גוש
             unit_column_id: "name", // חלקה(מזין לשם האייטם)
             technical_errors_column_id: "long_text_mksk5948", // טכני -פירוט שגיאה
@@ -84,6 +84,50 @@ export const accountConfig = {
             unit_column_id: "text_mksq8b5t", // חלקה(לעמודה ולא לשם האייטם)
             technical_errors_column_id: "long_text_mksk2a5y", // טכני -פירוט שגיאה
         }  
-    }
+    },
+
+    "30177909": {
+        account_name: "reuven Ayz",
+        subunits:{
+            boardId: 2117238558,
+            columnMap: {    
+            "החלק ברכוש המשותף": "numeric_mkv7nxcx",
+            "תיאור קומה": "dropdown_mkv7r6fm",
+            "שטח במר": "numeric_mkv7dyzw",
+            "משכנתה": "color_mkv788gf",
+            "קשר לחלקה": "board_relation_mkv7n7c4",
+            "משכנתה - בנק": "text_mkvx20y4",
+            "חנייה מוצמדת במר": "numeric_mkvx4ce9",
+            "מספר חניות מוצמדות": "numeric_mkvxdpfy",
+            "גג מוצמד במר": "numeric_mkvxp8gf",
+            "מספר גגות מוצמדים": "numeric_mkvxa1se",
+            "מחסן מוצמד במר": "numeric_mkvx3ybg",
+            "מספר מחסנים מוצמדים": "numeric_mkvx3m93",
+            "פירוט הערות": "long_text_mkvx3bk1",
+            },
+            source_column_id: "color_mkvx8d37"
+        },
+        owners:{
+            boardId: 2117351200,
+            columnMap: {    
+                "תעודת זהות": "text_mkv7qfwv",
+                "אחוז אחזקה בתת החלקה": "numeric_mkvxaqmt",
+                "תת חלקה": "board_relation_mkv7f3dh",
+                "סוג זיהוי": "dropdown_mkv7v2gv",
+                "פירוט הבעלות": "dropdown_mkv7zgts",
+                "סוג בעלות": "color_mkvx8g57"
+            },
+            source_column_id: "color_mkvx3sec"
+        },
+        units:{
+            boardId: 2117238485,
+            connect_to_subunits_column_id : "board_relation_mkv7c6rs", // חיבור לתתי חלקות
+            source_column_id : "color_mkvx9p0d", // עמודת מקור
+            failed_status_column_id: "color_mkvxjmke", // טכני(אם זה נכשל או עלה חלקית)
+            block_column_id: "text_mkv7cz34", // גוש
+            unit_column_id: "name", // חלקה(מזין לשם האייטם)
+            technical_errors_column_id: "long_text_mkvxnjes", // טכני -פירוט שגיאה
+        }
+    }, 
 }
 
