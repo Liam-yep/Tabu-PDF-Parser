@@ -3,11 +3,10 @@ import logger from "./logger/index.js";
 import { accountConfig } from '../helpers/config/account-config.js';
 
 
-const TAG = 'getFileInfo';
+const TAG = 'monday-service';
 
 export const getFileInfo = async (token, itemId, columnId) => {
   logger.debug('Started getFileInfo', TAG);
-
   try {
     const mondayClient = initMondayClient();
     mondayClient.setApiVersion('2024-07');
@@ -39,7 +38,7 @@ export const getFileInfo = async (token, itemId, columnId) => {
 
     const valueStr = item.column_values?.[0]?.value;
     if (!valueStr) {
-      throw new Error('No file value found in the column');
+      throw new Error('No file found in the column');
     }
 
     const value = JSON.parse(valueStr);
@@ -66,7 +65,7 @@ export const getFileInfo = async (token, itemId, columnId) => {
 
 
 export const send_notification = async (token, user_id, itemId, text) => {
-    console.log("send_notification", user_id, itemId, text)
+    console.log("send_notification")
     try {
       const mondayClient = initMondayClient();
       mondayClient.setApiVersion('2024-07');
@@ -185,7 +184,7 @@ export const change_units_columns = async (token, itemId, accountId, unitNumber,
       columnValues: JSON.stringify(columnValues)
     };
 
-    logger.debug("📤 Sending change_units_columns", TAG, { mutation, variables });
+    // logger.debug("📤 Sending change_units_columns", TAG, { mutation, variables });
 
     const response = await mondayClient.api(mutation, { variables });
     logger.info("✅ Status column updated successfully", TAG, response);
@@ -315,10 +314,7 @@ export const send_technical_notes = async ({
     columnId: technical_errors_column_id,
     value: JSON.stringify({ text: fullMessage })
   };
-
-
-    logger.debug("Sending send_technical_notes", TAG, { mutation, variables });
-
+  
     const response = await mondayClient.api(mutation, { variables });
     logger.info("✅ Technical notes updated successfully", TAG, response);
 
@@ -333,3 +329,109 @@ export const send_technical_notes = async ({
     logger.error("❌ Error in send_technical_notes", TAG, err);
   }
 };
+
+
+export const get_existing_subunits = async (token, itemId, accountId) => {
+  logger.debug("get_existing_subunits starts", TAG)
+
+  const config = accountConfig[accountId];
+  if (!config) {
+    throw new Error(`No config found for account ${accountId}`);
+  }
+  const { units } = config;
+  const { connect_to_subunits_column_id } = units
+
+  try {
+    const mondayClient = initMondayClient();
+    mondayClient.setApiVersion('2024-10');
+    mondayClient.setToken(token);
+
+    const query = `
+      query ($itemId: [ID!]) {
+        items(ids: $itemId) {
+          column_values(ids:["${connect_to_subunits_column_id}"]) {
+            ... on BoardRelationValue {
+              linked_items{
+                id
+                name
+              }
+            }
+          }
+        }
+      }`;
+
+    const variables = { itemId };
+    const response = await mondayClient.api(query, { variables });
+    const linkedItems = response?.data?.items?.[0]?.column_values?.[0]?.linked_items || [];
+    
+    // logger.info(`📦 Found ${linkedItems.length} linked subunits`, TAG);
+    return linkedItems;
+
+  } catch (err) {
+    logger.error('❌ Error in get_existing_subunits', TAG, err);
+    return [];
+  }
+};
+
+
+export const get_existing_owners = async (token, subunitItemIds, accountId) => {
+  const TAG = "get_existing_owners";
+  const config = accountConfig[accountId];
+  if (!config) throw new Error(`No config found for account ${accountId}`);
+
+  const { subunits, owners } = config;
+  const ownersRelationCol = subunits.columnMap["דיירים"]; // עמודת קונקט לדיירים
+  const { columnMap: ownerCols } = owners;
+
+  try {
+    const mondayClient = initMondayClient();
+    mondayClient.setApiVersion("2024-10");
+    mondayClient.setToken(token);
+
+    // שולף את כל תתי החלקות וממנו את הקישור לדיירים
+    const query = `
+      query ($ids: [ID!]) {
+        items(ids: $ids) {
+          id
+          name
+          column_values(ids: ["${ownersRelationCol}"]) {
+            ... on BoardRelationValue {
+              linked_items {
+                id
+                name
+                column_values(ids: ["${ownerCols["תעודת זהות"]}", "${ownerCols["פירוט הבעלות"]}"]) {
+                  id
+                  text
+                }
+              }
+            }
+          }
+        }
+      }
+    `;
+    // console.log("get_existing_owners", { query, subunitItemIds });
+    const response = await mondayClient.api(query, { variables: { ids: subunitItemIds } });
+    // console.log("get_existing_owners response", response);
+    const subunitsData = response?.data?.items || [];
+
+    // פלט שטוח של כל הדיירים
+    const ownersList = subunitsData.flatMap(su =>
+      (su?.column_values?.[0]?.linked_items || []).map(owner => ({
+        id: owner.id,
+        name: owner.name,
+        subunitId: su.id,
+        subunitName: su.name,
+        nationalId: owner.column_values.find(cv => cv.id === ownerCols["תעודת זהות"])?.text || "",
+        ownershipType: owner.column_values.find(cv => cv.id === ownerCols["פירוט הבעלות"])?.text || ""
+      }))
+    );
+
+    // logger.info(`📦 Found ${ownersList.length} owners`, TAG);
+    return ownersList;
+
+  } catch (err) {
+    logger.error("❌ Error in get_existing_owners", TAG, err);
+    return [];
+  }
+};
+

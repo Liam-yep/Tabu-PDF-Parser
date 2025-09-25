@@ -17,6 +17,7 @@ export const accountConfig = {
             "מחסן מוצמד במר": "numeric_mkswjsyz",
             "מספר מחסנים מוצמדים": "numeric_mksw5m09",
             "פירוט הערות": "long_text_mkst6sbc",
+            "דיירים": "board_relation_mkr4pv3m"
             },
             source_column_id: "color_mkskq78k"
         },
@@ -61,6 +62,7 @@ export const accountConfig = {
             "מחסן מוצמד במר": "numeric_mkswp37d",
             "מספר מחסנים מוצמדים": "numeric_mkswax82",
             "פירוט הערות": "long_text_mkstn2pw",
+            "דיירים": "board_relation_mkrrrpbb"
             },
             source_column_id: "color_mksmmvwd"
         },
@@ -104,6 +106,7 @@ export const accountConfig = {
             "מחסן מוצמד במר": "numeric_mkvx3ybg",
             "מספר מחסנים מוצמדים": "numeric_mkvx3m93",
             "פירוט הערות": "long_text_mkvx3bk1",
+            "דיירים": "board_relation_mkv7zfg3"
             },
             source_column_id: "color_mkvx8d37"
         },

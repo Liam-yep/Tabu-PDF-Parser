@@ -5,7 +5,7 @@ const TAG = 'authentication-middleware';
 
 export async function authenticationMiddleware(req, res, next) {
   try {
-    console.log('authenticationMiddleware called', "process.env.MONDAY_SIGNING_SECRET", process.env.MONDAY_SIGNING_SECRET, "getSecret(MONDAY_SIGNING_SECRET)", getSecret("MONDAY_SIGNING_SECRET"));
+    // console.log('authenticationMiddleware called', "process.env.MONDAY_SIGNING_SECRET", process.env.MONDAY_SIGNING_SECRET, "getSecret(MONDAY_SIGNING_SECRET)", getSecret("MONDAY_SIGNING_SECRET"));
     let { authorization } = req.headers;
     if (!authorization && req.query) {
       authorization = req.query.token;
