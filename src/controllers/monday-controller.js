@@ -52,7 +52,7 @@ export async function sendPdf(userId, accountId, itemId, inputFields) {
     console.log("📥 File saved to:", filePath);
     
     const { unitNumber, blockNumber, subunitData, ownersData, processPdfFileFailedOwners, processPdfFileFaileSubunits } = await processPdfFile(filePath);
-    גדש
+
     if (!unitNumber){
       error_reason = "Invalid file. Please upload a valid PDF Tabu document."
       console.error(error_reason);
