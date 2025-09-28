@@ -1,17 +1,4 @@
-const buildMergeKey = (owner, subunitIdMap) => {
-  const subunitId = owner.subunitId || subunitIdMap[owner["תת חלקה"]];
-  
-  // תעדוף זהות
-  let rawId = owner["תעודת זהות"] ?? owner.nationalId ?? null;
-  let cleanId = rawId && rawId !== "null" && rawId !== "" ? rawId : null;
-
-  // fallback תמיד לשם
-  const identifier = cleanId || owner["שם בעלים"] || owner.name;
-
-  const ownershipType = owner["פירוט הבעלות"] || owner.ownershipType || "";
-
-  return `${subunitId} - ${identifier} - ${ownershipType}`;
-};
+import { buildMergeKey } from "./utils.js";
 
 
 export function prepareSubunitsForSync(existingSubunits, parsedSubunits, unitNumber) {

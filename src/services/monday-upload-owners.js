@@ -174,8 +174,15 @@ export async function createOwner(token, row, subunitIdMap, accountId) {
     [columnMap["תת חלקה"]]: { item_ids: [parseInt(subunitItemId)] },
     [source_column_id]: { label: "נסח טאבו" },
     // [columnMap["סוג זיהוי"]]: { labels: [String(row["סוג זיהוי"] || "").trim()] },
-    [columnMap["פירוט הבעלות"]]: { labels: [String(row["פירוט הבעלות"] || "").trim()] },
+    // [columnMap["פירוט הבעלות"]]: { labels: [String(row["פירוט הבעלות"] || "").trim()] },
   };
+
+  if (row["פירוט הבעלות"] && row["פירוט הבעלות"].labels) {
+    columnValues[columnMap["פירוט הבעלות"]] = {
+      labels: row["פירוט הבעלות"].labels.map(l => String(l).trim())
+    };
+  }
+
 
   if (row["תעודת זהות"]) {
     columnValues[columnMap["תעודת זהות"]] = String(row["תעודת זהות"]).trim();
@@ -254,8 +261,14 @@ export async function updateOwner(token, itemId, row, subunitIdMap, accountId) {
     [columnMap["תת חלקה"]]: { item_ids: [parseInt(subunitItemId)] },
     [source_column_id]: { label: "נסח טאבו" },
     // [columnMap["סוג זיהוי"]]: { labels: [String(row["סוג זיהוי"] || "").trim()] },
-    [columnMap["פירוט הבעלות"]]: { labels: [String(row["פירוט הבעלות"] || "").trim()] },
+    // [columnMap["פירוט הבעלות"]]: { labels: [String(row["פירוט הבעלות"] || "").trim()] },
   };
+
+  if (row["פירוט הבעלות"] && row["פירוט הבעלות"].labels) {
+    columnValues[columnMap["פירוט הבעלות"]] = {
+      labels: row["פירוט הבעלות"].labels.map(l => String(l).trim())
+    };
+}
 
   if (row["תעודת זהות"]) {
     columnValues[columnMap["תעודת זהות"]] = String(row["תעודת זהות"]).trim();
