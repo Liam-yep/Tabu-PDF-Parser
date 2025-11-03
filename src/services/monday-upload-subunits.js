@@ -291,7 +291,8 @@ export async function updateSubunit(token, itemId, row, accountId) {
           change_multiple_column_values (
             item_id: ${itemId},
             board_id: ${boardId},
-            column_values: ${JSON.stringify(JSON.stringify(columnValues))}
+            column_values: ${JSON.stringify(JSON.stringify(columnValues))},
+            create_labels_if_missing: true
           ) {
             id
           }

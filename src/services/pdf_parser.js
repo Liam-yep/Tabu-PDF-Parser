@@ -432,7 +432,10 @@ function extractSubunitData(lines, subunitId) {
     const headerText = headerLine.items.map(i => i.text).join(" ").trim();
 
     if (!find_subunit_data && headerText.includes("שטח") && headerText.includes('במ"ר') && i + 1 < lines.length) {
-      const valueLine = lines[i + 1].items;
+      let valueLine = lines[i + 1].items;
+      if (valueLine.length <= 2 && i + 2 < lines.length) {
+        valueLine = lines[i + 2].items;
+      }
       find_subunit_data = true
 
       const xMap = {
