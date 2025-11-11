@@ -17,7 +17,8 @@ export const accountConfig = {
             "מחסן מוצמד במר": "numeric_mkswjsyz",
             "מספר מחסנים מוצמדים": "numeric_mksw5m09",
             "פירוט הערות": "long_text_mkst6sbc",
-            "דיירים": "board_relation_mkr4pv3m"
+            "דיירים": "board_relation_mkr4pv3m",
+            "תאריך סיום חכירה": "date_mkxjsk8c"
             },
             source_column_id: "color_mkskq78k"
         },

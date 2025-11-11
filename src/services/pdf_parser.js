@@ -188,6 +188,7 @@ function extractLeases(lines, subunitId) {
   const lessees = [];
   let lastLessee = null;
   let checked_continued_line = false;
+  let LeaseEndDate = null;
 
   for (let i = 0; i < lines.length; i++) {
     const t = lines[i].items.map(it => it.text).join(" ").trim();
@@ -198,11 +199,20 @@ function extractLeases(lines, subunitId) {
         const currLineObj = lines[j];
         const currText = currLineObj.items.map(it => it.text).join(" ").trim();
 
-        const validOwnerPattern = /(ירושה על פי הסכם|ירושה|ללא תמורה|מכר לפי צו בית משפט|מכר ללא תמורה|מכר|שנוי שם|תיקון טעות סופר|צוואה על פי הסכם|צוואה|רישום בית משותף|עודף|עדכון פרטי זיהוי|צוואה - יורש אחר יורש|ת.ז|דרכון|העברת שכירות|שכירות)/;
+        const validOwnerPattern = /(ירושה על פי הסכם|ירושה|ללא תמורה|מכר לפי צו בית משפט|מכר ללא תמורה|מכר|שנוי שם|תיקון טעות סופר|צוואה על פי הסכם|צוואה|רישום בית משותף|עודף|עדכון פרטי זיהוי|צוואה - יורש אחר יורש|ת.ז|דרכון|העברת שכירות|שכירות|תיקון טעות סופר בשכירות|העברת שכירות בירושה)/;
 
         if (!validOwnerPattern.test(currText)) {
           
           const lessee = parseOwnerLine(currLineObj.items, "extractLeases");
+
+          if (currText.includes("תאריך סיום")){
+            const extractDate = extractTextFromXRange(currLineObj.items, 319, 446);
+            const dateMatch = extractDate.match(/(\d{2}[\/\.]\d{2}[\/\.]\d{4})/);
+            if (dateMatch) {
+              LeaseEndDate = dateMatch[1];
+            }
+            break
+          }
           if (
             currText.includes("הערות") ||
             currText.includes("תת חלקה") ||
@@ -256,12 +266,12 @@ function extractLeases(lines, subunitId) {
     }
   }
 
-  return lessees;
+  return { lessees, LeaseEndDate };
 }
 
 
 function extractOwners(lines, subunitId) {
-  const leasesData = extractLeases(lines, subunitId);
+  const { lessees: leasesData, LeaseEndDate } = extractLeases(lines, subunitId);
   
   const owners = [];
   let lastOwner = null;
@@ -335,7 +345,7 @@ function extractOwners(lines, subunitId) {
   }
   owners.push(...leasesData);
 
-  return owners;
+  return { owners, LeaseEndDate };
 }
 
 
@@ -508,10 +518,9 @@ function extractSubunitId(lines) {
 
 function parseSubunitBlock(block) {
   const subunitId = extractSubunitId(block);
-
   const subunitData = extractSubunitData(block, subunitId);
-  const ownersData = extractOwners(block, subunitId);
-
+  const { owners: ownersData, LeaseEndDate } = extractOwners(block, subunitId);
+  subunitData[0]["תאריך סיום חכירה"] = LeaseEndDate;
   if (ownersData.length === 0) {
     console.warn(`⚠️ לא נמצאו בעלים עבור תת חלקה ${subunitId}`);
   }
@@ -519,7 +528,7 @@ function parseSubunitBlock(block) {
 }
 
 
-function parseSubdivisions(subdivisionBlocks) {
+function  parseSubdivisions(subdivisionBlocks) {
   const allSubunits = [];
   const allOwners = [];
   const failedOwners = [];
@@ -550,6 +559,7 @@ export async function processPdfFile(filePath) {
     console.log("🔢 מספר יחידה:", unitNumber, "מספר גוש", blockNumber);
     console.log("📦 כמות תתי־יחידות:", subUnits.length);
     const [subunitData, ownersData, failedOwners, failedSubunits] = parseSubdivisions(subUnits);
+
     return { unitNumber, blockNumber, subunitData, ownersData, failedOwners, failedSubunits};
   } catch (error) {
     console.error("❌ שגיאה בעיבוד קובץ PDF:", error);

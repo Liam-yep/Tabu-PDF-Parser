@@ -209,6 +209,12 @@ export async function createSubunit(token, row, parentItemId, unitNumber, accoun
     [columnMap["משכנתה - בנק"]]: row["משכנתה - בנק"],
     [columnMap["פירוט הערות"]]: row["פירוט הערות"],
   };
+  if (row["תאריך סיום חכירה"]){
+    const raw = row["תאריך סיום חכירה"];
+    const [day, month, year] = raw.split(/[./]/);
+    const isoDate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+    columnValues[columnMap["תאריך סיום חכירה"]] = isoDate;
+  }
 
   columnValues = applyAttachmentsToColumns(columnValues, columnMap, row["הצמדות - פירוט"]);
 
@@ -277,7 +283,12 @@ export async function updateSubunit(token, itemId, row, accountId) {
     [columnMap["משכנתה - בנק"]]: row["משכנתה - בנק"],
     [columnMap["פירוט הערות"]]: row["פירוט הערות"],
   };
-
+  if (row["תאריך סיום חכירה"]){
+    const raw = row["תאריך סיום חכירה"];
+    const [day, month, year] = raw.split(/[./]/);
+    const isoDate = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+    columnValues[columnMap["תאריך סיום חכירה"]] = isoDate;
+  }
   columnValues = applyAttachmentsToColumns(columnValues, columnMap, row["הצמדות - פירוט"]);
 
   let attempt = 0;
