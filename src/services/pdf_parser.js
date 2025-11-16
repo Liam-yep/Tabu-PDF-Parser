@@ -520,6 +520,17 @@ function parseSubunitBlock(block) {
   const subunitId = extractSubunitId(block);
   const subunitData = extractSubunitData(block, subunitId);
   const { owners: ownersData, LeaseEndDate } = extractOwners(block, subunitId);
+
+  const hasLease = ownersData.some(o => o["סוג בעלות"] === "חכירות");
+  const hasOwnership = ownersData.some(o => o["סוג בעלות"] === "בעלות");
+  if (hasLease && hasOwnership) {
+    ownersData.forEach(o => {
+      if (o["סוג בעלות"] === "בעלות") {
+        o["אחוז אחזקה בתת החלקה"] = "";
+      }
+    });
+  }
+
   subunitData[0]["תאריך סיום חכירה"] = LeaseEndDate;
   if (ownersData.length === 0) {
     console.warn(`⚠️ לא נמצאו בעלים עבור תת חלקה ${subunitId}`);
