@@ -47,6 +47,7 @@ export function prepareSubunitsForSync(existingSubunits, parsedSubunits, unitNum
  * @param {Object} subunitIdMap - מפת תתי חלקות { "1": "50118...", "2": "50119..." }
  */
 export function prepareOwnersForSync(existingOwners, mergedOwners, subunitIdMap) {
+  // console.log({existingOwners, mergedOwners, subunitIdMap})
   const existingByKey = new Map();
 
   for (const o of existingOwners) {

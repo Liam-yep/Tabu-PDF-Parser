@@ -380,7 +380,7 @@ export const get_existing_owners = async (token, subunitItemIds, accountId) => {
   if (!config) throw new Error(`No config found for account ${accountId}`);
 
   const { subunits, owners } = config;
-  const ownersRelationCol = subunits.columnMap["דיירים"]; // עמודת קונקט לדיירים
+  const ownersRelationCol = subunits.columnMap["דיירים"];
   const { columnMap: ownerCols } = owners;
 
   try {
@@ -388,34 +388,50 @@ export const get_existing_owners = async (token, subunitItemIds, accountId) => {
     mondayClient.setApiVersion("2024-10");
     mondayClient.setToken(token);
 
-    // שולף את כל תתי החלקות וממנו את הקישור לדיירים
-    const query = `
-      query ($ids: [ID!]) {
-        items(ids: $ids) {
-          id
-          name
-          column_values(ids: ["${ownersRelationCol}"]) {
-            ... on BoardRelationValue {
-              linked_items {
-                id
-                name
-                column_values(ids: ["${ownerCols["תעודת זהות"]}", "${ownerCols["פירוט הבעלות"]}"]) {
+    // --- batching helper ---
+    const batch = (arr, size) => {
+      const out = [];
+      for (let i = 0; i < arr.length; i += size) {
+        out.push(arr.slice(i, i + size));
+      }
+      return out;
+    };
+
+    const batches = batch(subunitItemIds, 25); // Monday limit
+
+    let allSubunits = [];
+
+    for (const group of batches) {
+      const query = `
+        query ($ids: [ID!]) {
+          items(ids: $ids) {
+            id
+            name
+            column_values(ids: ["${ownersRelationCol}"]) {
+              ... on BoardRelationValue {
+                linked_items {
                   id
-                  text
+                  name
+                  column_values(ids: ["${ownerCols["תעודת זהות"]}", "${ownerCols["פירוט הבעלות"]}"]) {
+                    id
+                    text
+                  }
                 }
               }
             }
           }
         }
-      }
-    `;
-    // console.log("get_existing_owners", { query, subunitItemIds });
-    const response = await mondayClient.api(query, { variables: { ids: subunitItemIds } });
-    // console.log("get_existing_owners response", response);
-    const subunitsData = response?.data?.items || [];
+      `;
 
-    // פלט שטוח של כל הדיירים
-    const ownersList = subunitsData.flatMap(su =>
+      const response = await mondayClient.api(query, { variables: { ids: group } });
+
+      const data = response?.data?.items || [];
+      allSubunits.push(...data);
+    }
+
+    console.log(`Fetched ${allSubunits.length} subunits (after batching)`);
+
+    const ownersList = allSubunits.flatMap(su =>
       (su?.column_values?.[0]?.linked_items || []).map(owner => ({
         id: owner.id,
         name: owner.name,
@@ -426,7 +442,8 @@ export const get_existing_owners = async (token, subunitItemIds, accountId) => {
       }))
     );
 
-    // logger.info(`📦 Found ${ownersList.length} owners`, TAG);
+    console.log(`Collected ${ownersList.length} owners`);
+
     return ownersList;
 
   } catch (err) {
@@ -434,4 +451,5 @@ export const get_existing_owners = async (token, subunitItemIds, accountId) => {
     return [];
   }
 };
+
 

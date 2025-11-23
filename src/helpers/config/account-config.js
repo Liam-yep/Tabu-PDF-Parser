@@ -30,7 +30,8 @@ export const accountConfig = {
                 "תת חלקה": "board_relation_mkr4hh21",
                 "סוג זיהוי": "dropdown_mksk4a30",
                 "פירוט הבעלות": "dropdown_mkstc39n",
-                "סוג בעלות": "color_mkv8g8k"
+                "סוג בעלות": "color_mkv8g8k",
+                "מספר תת חלקה": "numeric_mkxzvf7n"
             },
             source_column_id: "color_mksfnhrz"
         },

@@ -149,7 +149,7 @@ export async function syncOwners(token, markedOwners, subunitIdMap, accountId) {
 
 export async function createOwner(token, row, subunitIdMap, accountId) {
   const TAG = "createOwner";
-
+  console.log({ row, subunitIdMap})
   const mondayClient = initMondayClient();
   mondayClient.setApiVersion("2024-07");
   mondayClient.setToken(token);
@@ -175,6 +175,7 @@ export async function createOwner(token, row, subunitIdMap, accountId) {
     [source_column_id]: { label: "נסח טאבו" },
     // [columnMap["סוג זיהוי"]]: { labels: [String(row["סוג זיהוי"] || "").trim()] },
     // [columnMap["פירוט הבעלות"]]: { labels: [String(row["פירוט הבעלות"] || "").trim()] },
+    [columnMap["מספר תת חלקה"]]: subunitId
   };
 
   if (row["פירוט הבעלות"] && row["פירוט הבעלות"].labels) {
@@ -262,6 +263,7 @@ export async function updateOwner(token, itemId, row, subunitIdMap, accountId) {
     [source_column_id]: { label: "נסח טאבו" },
     // [columnMap["סוג זיהוי"]]: { labels: [String(row["סוג זיהוי"] || "").trim()] },
     // [columnMap["פירוט הבעלות"]]: { labels: [String(row["פירוט הבעלות"] || "").trim()] },
+    [columnMap["מספר תת חלקה"]]: subunitId
   };
 
   if (row["פירוט הבעלות"] && row["פירוט הבעלות"].labels) {

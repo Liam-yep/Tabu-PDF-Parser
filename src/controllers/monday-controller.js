@@ -79,14 +79,14 @@ export async function sendPdf(userId, accountId, itemId, inputFields) {
     }
 
     const existingOwners = await get_existing_owners(token, Object.values(subunitIdMap), accountId);
-    // console.log("existingOwners", existingOwners);
+    console.log("existingOwners", existingOwners.length);
 
     const mergedOwners = mergeDuplicateOwners(ownersData, subunitIdMap);
     // console.log("mergedOwners", mergedOwners);
     
     const markedOwners = prepareOwnersForSync(existingOwners, mergedOwners, subunitIdMap);
     // console.log("markedOwners", markedOwners);
-
+    
     console.log("Sending owners to Monday...");
     // const failedOwners = await sendOwnersToMonday(token, ownersData, subunitIdMap, accountId);
     const failedOwners = await syncOwners(token, markedOwners, subunitIdMap, accountId);
