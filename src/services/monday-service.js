@@ -65,21 +65,21 @@ export const getFileInfo = async (token, itemId, columnId) => {
 
 
 export const send_notification = async (token, user_id, itemId, text) => {
-    console.log("send_notification")
-    try {
-      const mondayClient = initMondayClient();
-      mondayClient.setApiVersion('2024-07');
-      mondayClient.setToken(token);
+  console.log("send_notification")
+  try {
+    const mondayClient = initMondayClient();
+    mondayClient.setApiVersion('2024-07');
+    mondayClient.setToken(token);
 
-      const notification_query = `mutation 
+    const notification_query = `mutation 
         CreateNotification($user_id: ID!, $itemId: ID!, $text: String!) {
         create_notification (user_id: $user_id, target_id: $itemId, text: $text, target_type: Project) {
           text
         }
       }`;
-      const variables = {user_id, itemId, text};
-      const response = await mondayClient.api(notification_query, { variables })
-      return response;
+    const variables = { user_id, itemId, text };
+    const response = await mondayClient.api(notification_query, { variables })
+    return response;
   } catch (err) {
     logger.error('Error send_notification', TAG, err);
   }
@@ -88,14 +88,14 @@ export const send_notification = async (token, user_id, itemId, text) => {
 
 export const delete_all_subunits_before = async (token, itemId, accountId) => {
   logger.debug("delete_all_subunits_before starts", TAG)
-  
+
   const config = accountConfig[accountId];
   if (!config) {
     throw new Error(`No config found for account ${accountId}`);
   }
   const { units } = config;
   const { connect_to_subunits_column_id } = units
-  
+
   try {
     const mondayClient = initMondayClient();
     mondayClient.setApiVersion('2024-10');
@@ -114,16 +114,16 @@ export const delete_all_subunits_before = async (token, itemId, accountId) => {
           }
         }
       }`;
-      
+
     const variables = { itemId };
     const response = await mondayClient.api(query, { variables });
     const linkedItems = response?.data?.items?.[0]?.column_values?.[0]?.linked_items || [];
     logger.info(`Found ${linkedItems.length} linked items to delete`, TAG);
     for (const item of linkedItems) {
-        try {
-          logger.debug(`🗑 Deleting item: ${item.name} (${item.id})`, TAG);
+      try {
+        logger.debug(`🗑 Deleting item: ${item.name} (${item.id})`, TAG);
 
-          const deleteMutation = `
+        const deleteMutation = `
           mutation ($itemId: ID!) {
             delete_item(item_id: $itemId) {
               id
@@ -134,10 +134,10 @@ export const delete_all_subunits_before = async (token, itemId, accountId) => {
         const response = await mondayClient.api(deleteMutation, { variables });
 
         logger.info(`✅ Deleted item ${item.id}`, TAG);
-        } catch (err) {
-          logger.error(`❌ Failed to delete item ${item.id}`, TAG, err);
-        }
+      } catch (err) {
+        logger.error(`❌ Failed to delete item ${item.id}`, TAG, err);
       }
+    }
 
   } catch (err) {
     logger.error('❌ Error in delete_all_subunits_before', TAG, err);
@@ -145,7 +145,7 @@ export const delete_all_subunits_before = async (token, itemId, accountId) => {
 };
 
 
-export const change_units_columns = async (token, itemId, accountId, unitNumber, blockNumber) => {
+export const change_units_columns = async (token, itemId, accountId, unitNumber, blockNumber, sharedArea) => {
   logger.debug("change_units_columns starts", TAG);
 
   const config = accountConfig[accountId];
@@ -153,7 +153,7 @@ export const change_units_columns = async (token, itemId, accountId, unitNumber,
     throw new Error(`No config found for account ${accountId}`);
   }
   const { units } = config;
-  const { boardId, source_column_id, unit_column_id, block_column_id} = units;
+  const { boardId, source_column_id, unit_column_id, block_column_id, shared_area_column_id } = units;
 
   try {
     const mondayClient = initMondayClient();
@@ -175,9 +175,10 @@ export const change_units_columns = async (token, itemId, accountId, unitNumber,
     const columnValues = {
       [source_column_id]: { label: "נסח טאבו" },
       [unit_column_id]: unitNumber.toString(),     // מומלץ כטקסט – תואם לעמודת טקסט/מספר
-      [block_column_id]: blockNumber.toString()    // כנ"ל
+      [block_column_id]: blockNumber.toString(),    // כנ"ל
+      [shared_area_column_id]: sharedArea    // כנ"ל
     };
-
+    // console.log("columnValues", columnValues);
     const variables = {
       boardId: boardId,
       itemId: itemId.toString(),
@@ -202,7 +203,7 @@ export const send_failed_status = async (token, itemId, accountId, status) => {
     throw new Error(`No config found for account ${accountId}`);
   }
   const { units } = config;
-  const { failed_status_column_id, boardId} = units;
+  const { failed_status_column_id, boardId } = units;
 
   try {
     const mondayClient = initMondayClient();
@@ -245,11 +246,11 @@ export const send_technical_notes = async ({
   error_reason = null
 }) => {
   logger.debug("send_technical_notes starts", TAG, {
-    "processPdfFileFailedOwners":processPdfFileFailedOwners,
-    "processPdfFileFaileSubunits":processPdfFileFaileSubunits,
-    "failedOwners":failedOwners,
-    "failedSubunits":failedSubunits,
-    "error_reason":error_reason
+    "processPdfFileFailedOwners": processPdfFileFailedOwners,
+    "processPdfFileFaileSubunits": processPdfFileFaileSubunits,
+    "failedOwners": failedOwners,
+    "failedSubunits": failedSubunits,
+    "error_reason": error_reason
   });
 
   const config = accountConfig[accountId];
@@ -261,7 +262,7 @@ export const send_technical_notes = async ({
   const { boardId, technical_errors_column_id } = units;
 
   const errors = [];
-  
+
   if (error_reason) errors.push(error_reason);
 
   if (processPdfFileFaileSubunits.length > 0) {
@@ -309,22 +310,22 @@ export const send_technical_notes = async ({
     `;
 
     const variables = {
-    boardId: boardId,
-    itemId: itemId.toString(),
-    columnId: technical_errors_column_id,
-    value: JSON.stringify({ text: fullMessage })
-  };
-  
+      boardId: boardId,
+      itemId: itemId.toString(),
+      columnId: technical_errors_column_id,
+      value: JSON.stringify({ text: fullMessage })
+    };
+
     const response = await mondayClient.api(mutation, { variables });
     logger.info("✅ Technical notes updated successfully", TAG, response);
 
-     if (error_reason){
+    if (error_reason) {
       await send_failed_status(token, itemId, accountId, "נכשל")
     }
     else if (processPdfFileFaileSubunits.length > 0 || processPdfFileFailedOwners.length > 0 || failedSubunits.length > 0 || failedOwners.length > 0) {
       await send_failed_status(token, itemId, accountId, "הועלה חלקית")
     }
-    
+
   } catch (err) {
     logger.error("❌ Error in send_technical_notes", TAG, err);
   }
@@ -363,7 +364,7 @@ export const get_existing_subunits = async (token, itemId, accountId) => {
     const variables = { itemId };
     const response = await mondayClient.api(query, { variables });
     const linkedItems = response?.data?.items?.[0]?.column_values?.[0]?.linked_items || [];
-    
+
     // logger.info(`📦 Found ${linkedItems.length} linked subunits`, TAG);
     return linkedItems;
 

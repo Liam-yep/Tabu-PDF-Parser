@@ -22,15 +22,15 @@ const connectionModelService = new ConnectionModelService();
 export async function sendPdf(userId, accountId, itemId, inputFields) {
   console.log('sendPdf called');
   let connection, token, filePath, error_reason;
-  
-  try {  
-    console.log("accountId",accountId)
+
+  try {
+    console.log("accountId", accountId)
     connection = await connectionModelService.getConnectionByUserId(accountId);
     // logger.debug("connection from connectionModelService", TAG, {"connection":connection})
     token = connection?.mondayToken
 
     const { PDFColumnId } = inputFields;
-    console.log("PDFColumnId",PDFColumnId, "itemId", itemId);
+    console.log("PDFColumnId", PDFColumnId, "itemId", itemId);
     try {
       const { file_url, file_name } = await getFileInfo(token, itemId, PDFColumnId);
       filePath = await downloadFile(file_url, file_name);
@@ -38,26 +38,26 @@ export async function sendPdf(userId, accountId, itemId, inputFields) {
       if (!filePath) {
         const error_reason = "Failed to download file";
         await send_notification(token, userId, itemId, error_reason);
-        await send_technical_notes({token, itemId, accountId, error_reason});
+        await send_technical_notes({ token, itemId, accountId, error_reason });
         return;
       }
     } catch (err) {
       console.error("Error downloading file:", err);
       const error_reason = err.message || "Unknown error in files";
       await send_notification(token, userId, itemId, error_reason);
-      await send_technical_notes({token, itemId, accountId, error_reason});
+      await send_technical_notes({ token, itemId, accountId, error_reason });
       return;
     }
 
     console.log("📥 File saved to:", filePath);
-    
-    const { unitNumber, blockNumber, subunitData, ownersData, processPdfFileFailedOwners, processPdfFileFaileSubunits } = await processPdfFile(filePath);
 
-    if (!unitNumber){
+    const { unitNumber, blockNumber, subunitData, ownersData, processPdfFileFailedOwners, processPdfFileFaileSubunits, sharedArea } = await processPdfFile(filePath);
+
+    if (!unitNumber) {
       error_reason = "Invalid file. Please upload a valid PDF Tabu document."
       console.error(error_reason);
       await send_notification(token, userId, itemId, error_reason)
-      await send_technical_notes({token, itemId, accountId, error_reason})
+      await send_technical_notes({ token, itemId, accountId, error_reason })
       return;
     }
     console.log("PDF parsed successfully");
@@ -66,14 +66,15 @@ export async function sendPdf(userId, accountId, itemId, inputFields) {
 
     const markedSubunits = prepareSubunitsForSync(existingSubunits, subunitData, unitNumber);
     // console.log("markedSubunits", markedSubunits);
-    
-    await change_units_columns(token, itemId, accountId, unitNumber, blockNumber)
+
+    console.log("sharedArea", sharedArea);
+    await change_units_columns(token, itemId, accountId, unitNumber, blockNumber, sharedArea)
     console.log("Sending subunits to Monday...");
-    
+
     // const { subunitIdMap, failedSubunits } = await sendSubunitsToMonday(token, subunitData, itemId, unitNumber, accountId);
     const { subunitIdMap, failedSubunits } = await syncSubunits(token, markedSubunits, itemId, unitNumber, accountId);
     // console.log("Subunits sent finished", subunitIdMap);
-    
+
     if (failedSubunits.length > 0) {
       logger.warn("sendPdf", TAG, `Some subunits failed to upload: ${failedSubunits.join(', ')}`);
     }
@@ -83,10 +84,10 @@ export async function sendPdf(userId, accountId, itemId, inputFields) {
 
     const mergedOwners = mergeDuplicateOwners(ownersData, subunitIdMap);
     // console.log("mergedOwners", mergedOwners);
-    
+
     const markedOwners = prepareOwnersForSync(existingOwners, mergedOwners, subunitIdMap);
     // console.log("markedOwners", markedOwners);
-    
+
     console.log("Sending owners to Monday...");
     // const failedOwners = await sendOwnersToMonday(token, ownersData, subunitIdMap, accountId);
     const failedOwners = await syncOwners(token, markedOwners, subunitIdMap, accountId);
@@ -95,17 +96,17 @@ export async function sendPdf(userId, accountId, itemId, inputFields) {
     if (failedOwners.length > 0) {
       logger.warn("sendPdf", TAG, `Some owners failed to upload: ${failedOwners.join(', ')}`);
     }
-    await send_technical_notes({token, itemId, accountId, processPdfFileFailedOwners, processPdfFileFaileSubunits, failedOwners, failedSubunits});
+    await send_technical_notes({ token, itemId, accountId, processPdfFileFailedOwners, processPdfFileFaileSubunits, failedOwners, failedSubunits });
     console.log("✅ Finished sendPdf");
     return
   } catch (err) {
-    console.error("sendPdf", TAG, {"error":err});
+    console.error("sendPdf", TAG, { "error": err });
     error_reason = "internal server error - Tabu PDF Parser"
     if (token) {
       await send_notification(token, userId, itemId, error_reason)
-      await send_technical_notes({token, itemId, accountId, error_reason})
+      await send_technical_notes({ token, itemId, accountId, error_reason })
     }
-    return 
+    return
   } finally {
     if (filePath) {
       try {
