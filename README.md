@@ -1,69 +1,104 @@
-## Overview
+# מסמך חפיפה - פירוק נסח טאבו (PDF) ל-Monday
 
-This is the "Quickstart Integration" example Monday app.
-<br>It can be used as a board recipe, which transforms data from one text column to another
+## סקירה כללית
+פרויקט זה הוא אינטגרציה ב-Node.js עבור Monday.com. המטרה העיקרית שלו היא לפרק קבצי **PDF (נסחי טאבו)** שמצורפים לפריטים ב-Monday וליצור באופן אוטומטי ישויות מקושרות בלוחות Monday אחרים: **תתי-חלקות (Subunits)** ו-**בעלים (Owners)**.
 
-<br>This app demonstrates how to use the:
+המערכת תומכה במספר "חשבונות" (Accounts) שונים (כגון Katagroup, Gabay Group, Reuven Ayz), כאשר לכל חשבון מוגדרים הלוחות והעמודות הרלוונטיים לו.
 
-- integration recipe
-- custom action
-- call authentication with JWT
-- query monday API using short lived token (seamless authentication)
-- remote options for custom fields
+## מבנה המערכת והלוחות
+עבור כל פרויקט/חשבון, המערכת מצפה לשלושה לוחות מרכזיים:
+1.  **לוח יחידות/חלקות (Units Board)**: הלוח הראשי שבו הטריגר מתבצע.
+2.  **לוח תתי-חלקות (Subunits Board)**: הלוח אליו יועלו התתי-החלקות.
+3.  **לוח בעלים (Owners Board)**: הלוח אליו יועלו הבעלים של כל דירה.
 
-<br>You can follow along in our [Quickstart guide](https://developer.monday.com/apps/docs/quickstart-integration) or use the instructions below.
-<br>![Screenshot](https://dapulse-res.cloudinary.com/image/upload/v1658942490/remote_mondaycom_static/developers/screenshots/QUICKSTART_GIPHY.gif)
+## איך זה עובד
+### טריגר
+התהליך מתחיל כאשר משתמש מפעיל פעולה בלוח (שינוי סטטוס) אשר שולחת בקשה לנתיב `/monday/sendPdf` (דרך הקונטרולר).
 
-## Install
+### תהליך (High Level)
+1.  **קבלת הבקשה**: השרת מקבל את ה-`itemId`, `userId` ו-`accountId`.
+2.  **הורדת הקובץ**: המערכת מאתרת את קובץ ה-PDF בעמודת הקבצים ומורידה אותו.
+3.  **עיבוד וניתוח (Parsing)**: הקובץ עובר ל-`pdf_parser.js` לפונקציה processPdfFile שעושה את כל הניתוח של ה-PDF מחלץ ממנו את:
+   *   מספר גוש וחלקה.
+   *   שטח הרכוש המשותף.
+   *   רשימת תתי-חלקות (דירות) עם נתונים כמו שטח, קומה, הצמדות (חניה, גג, מחסן).
+   *   רשימת בעלים לכל תת-חלקה (כולל ת"ז, חלק בנכס, סוג בעלות).
+החילוץ מתבצע לפי תבניות קבועות לדוגמה ידוע שאיפה שיש את המילה "בעלויות" אחרי זה יהיה את הבעלים במקומות קבועים על המסך ככה שבדקתי מה בדיוק המיקום של כל דבר לדוגמה המיקום של תז זה בשורה שאחרי במיקום בין [167, 244]. את הבדיקה ביצעתי בעזרת:
+`import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";`
+ובמידה ויש בקשות חדשות לחילוץ אני בעזרת זה בודק מה המיקום של מה שרוצים לחלץ על המסך.
+ 
+4.  **סנכרון ל-Monday**:
+   *   **עדכון החלקה**: עדכון השם ועמודות הגוש, חלקה ושטח משותף בלוח הראשי באייטם שממנו זה הגיע.
+   *   **סנכרון תתי-חלקות**: יצירה/עדכון/מחיקה של שורות בלוח "תתי-חלקות" וקישורן לחלקה הראשית.
+   *   **סנכרון בעלים**: יצירה/עדכון/מחיקה של שורות בלוח "בעלים" וקישורן לתת-החלקה הרלוונטית.
+5.  **טיפול בשגיאות**: במידה ויש שגיאות (קובץ לא תקין, כישלון ביצירת פריט), המערכת מעדכנת עמודת "שגיאות טכניות" בלוח הראשי ושולחת נוטיפיקציה למשתמש.
 
-1. Make sure you have Node (v16.16+) and npm installed
+## זרימת הלוגיקה המרכזית ושכבות הקוד
+הלוגיקה מחולקת למספר קבצים מרכזיים בתיקיית `src`:
 
-2. Install the dependencies:
+### 1. `controllers/monday-controller.js`
+המנצח על התזמורת. הפונקציה `sendPdf`:
+*   מורידה את הקובץ.
+*   קוראת ל-`processPdfFile` לפירוק המידע.
+*   קוראת ל-`change_units_columns` לעדכון הלוח הראשי.
+*   קוראת ל-`syncSubunits` ול-`syncOwners` להעלאת הנתונים.
+*   מטפלת בלוגיקה של מחיקת קובץ זמני ודיווח שגיאות (`send_technical_notes`).
 
+### 2. `services/pdf_parser.js`
+המוח מאחורי פירוק ה-PDF.
+*   משתמש ב-`pdfjs-dist` כדי לקרוא את הטקסט מהקובץ.
+*   `cleanLinesFromHeaderBlock`: מנקה את ההדרים ומחלץ גוש/חלקה.
+*   `splitIntoSubUnits`: מזהה התחלה של כל תת-חלקה (לפי טקסט "תת חלקה X").
+*   `extractSubunitData`: שולף שטח, קומה, הצמדות (גג/חניה ע"י זיהוי מילות מפתח וחיבור שטחים), משכנתאות.
+*   `extractOwners` / `extractLeases`: מפרסר את טבלאות הבעלויות והחכירות, מזהה שמות, ת"ז וחלק בנכס, ומנקה נתונים (כמו הסרת סוגריים מהשמות).
+
+### 3. `services/monday-upload-subunits.js`
+אחראי על העלאת תתי-חלקות.
+*   מבצע התאמה בין הנתונים שחולצו לעמודות ב-Monday (לפי המיפוי בקונפיגורציה).
+*   מחשב אחוזים משותפים (`parsePercentage`).
+*   יוצר או מעדכן פריטים ב-Monday (כולל Retries במקרה של כישלון רשת).
+
+### 4. `services/monday-upload-owners.js`
+אחראי על העלאת בעלים.
+*   דומה ללוגיקה של תתי-החלקות, אך מקשר כל בעל לתת-החלקה המתאימה לו.
+*   מטפל בפרטי בעלות, סוג זיהוי, ות"ז.
+
+### 5. `services/monday-service.js`
+שירות כללי לעבודה מול ה-API של Monday. כולל פונקציות עזר כמו:
+*   `getFileInfo`: קבלת לינק להורדה.
+*   `send_technical_notes`: כתיבת לוג שגיאות לעמודה ייעודית בלוח.
+*   `get_existing_subunits` / `get_existing_owners`: בדיקה מה כבר קיים בלוח כדי למנוע כפילויות (אם כי הלוגיקה העיקרית היא יצירה/עדכון).
+
+## קונפיגורציה (`src/helpers/config/account-config.js`)
+הלב של ההגדרות. לכל `accountId` (מזהה חשבון במאנדיי) מוגדר אובייקט המכיל:
+*   **units**: הגדרות לוח החלקות (ID של הלוח, עמודות מקור, עמודות שגיאה).
+*   **subunits**: הגדרות לוח תתי-החלקות (ID של הלוח, מיפוי עמודות כמו "שטח במר" -> `numeric_mks1ka3t`).
+*   **owners**: הגדרות לוח הבעלים.
+
+**דוגמה למבנה קונפיגורציה:**
+```javascript
+"27435948": { // Account ID
+   account_name: "Katagroup",
+   subunits: {
+       boardId: 1923677090,
+       columnMap: {
+           "שטח במר": "numeric_mks1ka3t",
+            // ... עוד מיפויים
+       }
+   },
+   // ... הגדרות units ו-owners
+}
 ```
-$ npm install
-```
 
-## Configure your Monday App
+## הערות ובעיות נפוצות
+1.  **איכות קבצי ה-PDF**: הקוד מותאם לקבצי טאבו דיגיטליים טקסטואליים. סריקות (תמונות בתוך PDF) לא יעבדו טוב או לא יעבדו בכלל.
+2.  **שינוי מבנה נסח**: אם רשות המקרקעין תשנה את פורמט הנסח באופן קיצוני, יהיה צורך להתאים את ה-Regex ב-`pdf_parser.js`.
+3.  **מגבלות API**: הקוד מבצע קריאות `mutation` ביחידות (ולא ב-batch גדול מאוד) כדי להימנע מ-Complexity Budget, ויש למנגנון Retries (עד 3 ניסיונות) לכל פריט.
+4.  **זיהוי שדות**: המערכת מסתמכת על מיקומים (קואורדינטות X) ומילות מפתח ("הערות", "משכנתאות") בתוך ה-PDF. שינוי במיקומים אלו בנסח עשוי לגרום לפספוס נתונים.
 
-### Part One: Create a new app and integration feature
+## אותנטיקציה
+הקוד עובד עם OAuth2 וברגע שמורידים את האפליקציה לחשבון אז עוברים תהליך OAuth שיוצר טוקן ואז הקוד משתמש בטוקן הזה.
 
-1. Open monday.com, login to your account and go to a "Developers" section.
-2. Create new app - name it "Integration Example App"
-3. Open "Features" section and create new "Integration" feature
-4. Choose the "Quickstart Integration - NodeJS" template to start. Add in the missing scopes, run the command scaffold in your command line, and paste the resulting URL into the URL box.
-
-<br>![Screenshot](https://dapulse-res.cloudinary.com/image/upload/v1659026516/integration_template.gif)
-
-### Part Two: Update your integration's basic information
-
-In the feature editor, open the "Feature Details" tab. This tab allows you to add a title and description to your custom integration recipe. The user will see the title and description when they see your recipe in the Integrations Center.
-
-<br>![Screenshot](https://dapulse-res.cloudinary.com/image/upload/v1659026704/ee5c6e5-Quickstart_1.png)
-
-### Part Three: Recipe configuration
-
-Our new feature templates provide the integration recipe for you, so it is ready to go.
-
-<br>![Screenshot](https://dapulse-res.cloudinary.com/image/upload/v1659026804/ecd8711-Recipe.png)
-
-This integration utilizes a custom action that calls our API to update a second text column. If you want to see the code behind this recipe, navigate into the "quickstart-integrations" folder downloaded onto your computer after you ran the command line prompt in Part 1.
-
-In short, integrations run off of triggers that invoke certain actions. These triggers are the conditions that must be met before an action can take place.
-
-## Part Four: Run the project
-
-1. Add your MONDAY_SIGNING_SECRET to .env file
-   <br> \*\* To get your MONDAY_SIGNING_SECRET go to monday.com, open Developers section, open your app and find the Signing Secret in "Basic Information" section
-   <br> ![Screenshot](https://dapulse-res.cloudinary.com/image/upload/f_auto,q_auto/remote_mondaycom_static/uploads/VladMystetskyi/4db4f03e-67a5-482d-893e-033db67ee09b_monday-Apps2020-05-1901-31-26.png)
-2. Run the server using the monday tunnel:
-
-```
-$ npm run dev
-```
-
- ### Part Five: Using the custom integration recipe
-
-You're done! Head to any of your boards to add the integration recipe by searching for its name (in this example the integration name is "New Feature").
-
-Follow the integration recipe prompts as normal (selecting which Text columns you want) and watch the magic unfold!
+התהליך OAuth נשלח לראוט '/auth' וה redirect זה '/auth/callback'. זה הקובץ auth.js.
+והטוקן נשמר ב SecureStorage של מאנדיי.
+כל המשתנים שאנחנו שולפים בתהליך הזה אפשר להגיע אליהם בקישור הזה https://katagroup-unit.monday.com/apps/manage/10458486/app_versions/11831366/sections/monday_code_general
